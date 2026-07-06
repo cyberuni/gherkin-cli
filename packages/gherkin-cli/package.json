@@ -1,16 +1,27 @@
 {
 	"name": "gherkin-cli",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Agent-first Gherkin CLI — parse, validate, and diff .feature files with token-efficient, AXI-conformant output.",
-	"keywords": ["gherkin", "cucumber", "feature", "cli", "agent", "axi", "toon"],
+	"keywords": [
+		"gherkin",
+		"cucumber",
+		"feature",
+		"cli",
+		"agent",
+		"axi",
+		"toon"
+	],
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/cyberuni/gherkin-cli.git"
+		"url": "git+https://github.com/cyberuni/gherkin-cli.git"
 	},
 	"author": "unional <homawong@gmail.com>",
 	"license": "MIT",
 	"type": "module",
-	"files": ["dist", "!dist/**/*.test.*"],
+	"files": [
+		"dist",
+		"!dist/**/*.test.*"
+	],
 	"exports": {
 		".": {
 			"import": "./dist/index.js",
@@ -18,7 +29,7 @@
 		}
 	},
 	"bin": {
-		"gherkin-cli": "./dist/cli.js"
+		"gherkin-cli": "dist/cli.js"
 	},
 	"scripts": {
 		"build": "tsdown",

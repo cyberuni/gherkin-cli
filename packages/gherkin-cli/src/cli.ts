@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { realpathSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { Command, CommanderError } from 'commander'
 import { diffFeatures, GitError } from './diff.js'
 import { type Format, fail, render, truncate, writeResult, writeStderr } from './output.js'
@@ -143,7 +145,20 @@ export async function main(argv: string[]): Promise<void> {
 }
 
 /* c8 ignore start */
-if (process.argv[1]?.endsWith('cli.js') || process.argv[1]?.endsWith('cli.ts')) {
+// True when this file is the process entry — robust across a direct `node cli.js`
+// run and a bin invoked by name (npx / pnpm resolve argv[1] to a .bin symlink, so
+// compare real paths, not the basename).
+function isMainModule(): boolean {
+	const entry = process.argv[1]
+	if (entry === undefined) return false
+	try {
+		return realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url))
+	} catch {
+		return false
+	}
+}
+
+if (isMainModule()) {
 	main(process.argv.slice(2)).catch((err: Error) => {
 		writeStderr(`error: ${err.message}`)
 		process.exit(1)
