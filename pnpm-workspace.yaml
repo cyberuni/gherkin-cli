@@ -1,0 +1,8 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "tests/*"
+  - "tools/*"
+onlyBuiltDependencies:
+  - "@biomejs/biome"
+  - esbuild
