@@ -70,3 +70,110 @@ describe('diffFeatures (real git integration)', () => {
 		expect(map.get('drop me')).toBe('removed')
 	})
 })
+
+// A step's DocString / DataTable is part of the step. Hashing step text alone let a frozen `@rubric`
+// — which lives wholly inside a DocString — be gutted while still reporting `unchanged`, so the
+// narrowing self-cleared and Clearance never fired.
+describe('diffFeatures (step arguments are part of the signature)', () => {
+	const withDocString = (dimension: string, threshold: string) => `Feature: f
+  @rubric
+  Scenario: graded
+    Then the voice is graded
+      """
+      dimension: ${dimension}
+      threshold: ${threshold}
+      """
+`
+	const withDataTable = (dimension: string, threshold: string) => `Feature: f
+  Scenario: tabled
+    Given the bar is set
+      | dimension   | threshold   |
+      | ${dimension} | ${threshold} |
+`
+	const changeOf = (base: string, head: string) =>
+		diffFeatures(['f.feature'], { base: 'HEAD', reader: () => ({ head, base }) }).files[0]!.scenarios[0]!.change
+
+	it('reports a gutted DocString rubric as modified, not unchanged', () => {
+		expect(changeOf(withDocString('warmth', '3'), withDocString('vibes', '0'))).toBe('modified')
+	})
+
+	it('reports a gutted DataTable as modified, not unchanged', () => {
+		expect(changeOf(withDataTable('warmth', '3'), withDataTable('vibes', '0'))).toBe('modified')
+	})
+
+	// The tags must match on both sides, or a tag delta marks the scenario modified on its own and
+	// the assertion passes without the DocString being read at all.
+	it('reports an added DocString as modified', () => {
+		const bare = 'Feature: f\n  @rubric\n  Scenario: graded\n    Then the voice is graded\n'
+		expect(changeOf(bare, withDocString('warmth', '3'))).toBe('modified')
+	})
+
+	// A DocString's media type is part of what the argument says, not how it is written.
+	it('reports a rewritten DocString mediaType as modified', () => {
+		const media = (type: string) =>
+			`Feature: f\n  Scenario: graded\n    Then graded\n      \`\`\`${type}\n      threshold: 3\n      \`\`\`\n`
+		expect(changeOf(media('json'), media('yaml'))).toBe('modified')
+	})
+
+	// Controls — these MUST stay `unchanged`, or the stricter signature over-fires on cosmetics.
+	it('leaves an identical DocString unchanged', () => {
+		expect(changeOf(withDocString('warmth', '3'), withDocString('warmth', '3'))).toBe('unchanged')
+	})
+
+	// The delimiter is how the argument is written, not what it says. Excluding it is an independent
+	// choice, so it gets its own control rather than riding on "only content counts".
+	it('leaves a DocString delimiter swap unchanged', () => {
+		const delimited = (d: string) =>
+			`Feature: f\n  Scenario: graded\n    Then graded\n      ${d}\n      threshold: 3\n      ${d}\n`
+		expect(changeOf(delimited('"""'), delimited('```'))).toBe('unchanged')
+	})
+
+	// A DataTable's padding is how it is written, not what it says. Reducing rows to cell VALUES is
+	// what drops it — a naive hash of the raw rows keeps both the padding and each cell's location —
+	// so the exclusion is an independent choice and carries its own control.
+	it('leaves a realigned DataTable unchanged', () => {
+		const tight =
+			'Feature: f\n  Scenario: tabled\n    Given the bar is set\n      | dimension | threshold |\n      | warmth | 3 |\n'
+		const padded =
+			'Feature: f\n  Scenario: tabled\n    Given the bar is set\n      | dimension   |   threshold |\n      | warmth      |   3         |\n'
+		expect(changeOf(tight, padded)).toBe('unchanged')
+	})
+
+	// Source locations are excluded throughout. A signature over `location.line` would re-classify
+	// every scenario below a mid-file insertion as modified — firing Clearance on ordinary additive
+	// edits, the exact over-fire the argument hashing exists to avoid.
+	it('leaves a scenario pushed down the file by an insertion above it unchanged', () => {
+		const graded = `  @rubric
+  Scenario: graded
+    Then the voice is graded
+      """
+      dimension: warmth
+      threshold: 3
+      """
+`
+		const inserted = '  Scenario: inserted above\n    Given a wholly new precondition\n'
+		const map = (text: string) =>
+			new Map(
+				diffFeatures(['f.feature'], {
+					base: 'HEAD',
+					reader: () => ({ head: text, base: `Feature: f\n${graded}` }),
+				}).files[0]!.scenarios.map((s) => [s.name, s.change]),
+			)
+		const moved = map(`Feature: f\n${inserted}\n${graded}`)
+		expect(moved.get('graded')).toBe('unchanged')
+		expect(moved.get('inserted above')).toBe('added')
+	})
+
+	it('leaves a re-indented DocString unchanged (the parser strips common indentation)', () => {
+		const head = `Feature: f
+  @rubric
+  Scenario: graded
+    Then the voice is graded
+        """
+        dimension: warmth
+        threshold: 3
+        """
+`
+		expect(changeOf(withDocString('warmth', '3'), head)).toBe('unchanged')
+	})
+})

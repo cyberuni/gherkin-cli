@@ -94,9 +94,34 @@ export function gitReader(file: string, base: string): { head?: string; base?: s
 	return { head, base: baseText }
 }
 
-/** Canonical signature of a scenario: name + steps + tags + examples. */
+/** A step's DocString / DataTable payload, reduced to content — never location. */
+interface StepArgument {
+	docString?: { content: string; mediaType?: string }
+	dataTable?: { rows: { cells: { value: string }[] }[] }
+}
+
+/**
+ * A step's contribution to the signature: its keyword + text AND its argument.
+ *
+ * The argument is part of the step, not decoration: a `@rubric` lives wholly inside a DocString, so
+ * hashing step text alone lets a frozen rubric be renamed and its `threshold: 3` moved to
+ * `threshold: 0` while the scenario still reports `unchanged` — a narrowing that self-clears with no
+ * Clearance. Only *content* is hashed; `location` is excluded so moving a scenario down the file is
+ * not a change, and the DocString `delimiter` is excluded so swapping `"""` for ``` is not either.
+ * The parser strips a DocString's common indentation before this sees it, so re-indenting a block
+ * is likewise not a change.
+ */
+function stepSignature(s: { keyword: string; text: string } & StepArgument) {
+	return {
+		step: `${s.keyword.trim()} ${s.text}`,
+		docString: s.docString ? { content: s.docString.content, mediaType: s.docString.mediaType } : undefined,
+		dataTable: s.dataTable ? s.dataTable.rows.map((r) => r.cells.map((c) => c.value)) : undefined,
+	}
+}
+
+/** Canonical signature of a scenario: name + steps (with arguments) + tags + examples. */
 function signature(scenario: any): string {
-	const steps = (scenario.steps ?? []).map((s: { keyword: string; text: string }) => `${s.keyword.trim()} ${s.text}`)
+	const steps = (scenario.steps ?? []).map(stepSignature)
 	const tags = (scenario.tags ?? []).map((t: { name: string }) => t.name)
 	const examples = (scenario.examples ?? []).map(
 		(ex: { tableHeader?: { cells: { value: string }[] }; tableBody?: { cells: { value: string }[] }[] }) => ({
