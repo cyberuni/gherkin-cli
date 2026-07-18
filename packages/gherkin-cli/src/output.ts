@@ -143,17 +143,35 @@ export function writeStderr(text: string, err: Writable = process.stderr): void 
 	writeLine(err, text)
 }
 
-/** Print a structured error to STDERR honoring the format, then exit 1. */
+/**
+ * Print a structured error to STDOUT honoring the format, then exit.
+ *
+ * Errors are output the agent must act on, so they share the stdout channel
+ * with normal results (AXI #6). `help` carries the command that fixes the
+ * problem; `exitCode` is 2 for usage errors and 1 for everything else.
+ */
 export function fail(
 	code: ErrorCode,
 	message: string,
 	format: Format = 'toon',
-	opts: { err?: Writable; exit?: (code: number) => void } = {},
+	opts: { help?: string[]; exitCode?: number; out?: Writable; exit?: (code: number) => void } = {},
 ): void {
+	const help = opts.help ?? []
 	const body =
 		format === 'json'
-			? JSON.stringify({ error: { code, message } }, null, 2)
-			: `error: true\ncode: ${code}\nmessage: ${formatScalar(message)}`
-	writeStderr(body, opts.err)
-	;(opts.exit ?? process.exit)(1)
+			? JSON.stringify({ error: { code, message }, help }, null, 2)
+			: [`error: true`, `code: ${code}`, `message: ${formatScalar(message)}`, ...formatHelp(help)].join('\n')
+	writeResult(body, opts.out)
+	;(opts.exit ?? process.exit)(opts.exitCode ?? 1)
+}
+
+/** Render next-step suggestions as a TOON `help[n]` block (omitted when empty). */
+export function formatHelp(lines: string[]): string[] {
+	if (lines.length === 0) return []
+	return [`help[${lines.length}]:`, ...lines.map((line) => `${INDENT}${formatScalar(line)}`)]
+}
+
+/** Write next-step suggestions to STDOUT beneath a result (AXI #9). */
+export function writeHelp(lines: string[], out?: Writable): void {
+	if (lines.length > 0) writeResult(formatHelp(lines).join('\n'), out)
 }

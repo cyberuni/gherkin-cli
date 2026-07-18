@@ -81,23 +81,41 @@ describe('stream discipline', () => {
 })
 
 describe('fail', () => {
-	it('prints a structured error to stderr and exits 1', () => {
-		const err = fakeStream()
+	// Errors are output the agent must act on, so they go to stdout with the
+	// results — not stderr, which agents do not read.
+	it('prints a structured error to stdout and exits 1', () => {
+		const out = fakeStream()
 		let code = -1
 		fail('EPARSE', 'boom', 'toon', {
-			err,
+			out,
 			exit: (c) => {
 				code = c
 			},
 		})
 		expect(code).toBe(1)
-		expect(err.chunks.join('')).toContain('code: EPARSE')
-		expect(err.chunks.join('')).toContain('message: boom')
+		expect(out.chunks.join('')).toContain('code: EPARSE')
+		expect(out.chunks.join('')).toContain('message: boom')
+	})
+
+	it('exits 2 on a usage error and inlines the suggested fix', () => {
+		const out = fakeStream()
+		let code = -1
+		fail('EBADFLAG', "unknown option '--stat'", 'toon', {
+			exitCode: 2,
+			help: ['valid flags for `list`: --state'],
+			out,
+			exit: (c) => {
+				code = c
+			},
+		})
+		expect(code).toBe(2)
+		expect(out.chunks.join('')).toContain('help[1]:')
+		expect(out.chunks.join('')).toContain('valid flags for `list`: --state')
 	})
 
 	it('honors --format json', () => {
-		const err = fakeStream()
-		fail('EGIT', 'bad ref', 'json', { err, exit: () => {} })
-		expect(JSON.parse(err.chunks.join(''))).toEqual({ error: { code: 'EGIT', message: 'bad ref' } })
+		const out = fakeStream()
+		fail('EGIT', 'bad ref', 'json', { out, exit: () => {} })
+		expect(JSON.parse(out.chunks.join(''))).toEqual({ error: { code: 'EGIT', message: 'bad ref' }, help: [] })
 	})
 })
