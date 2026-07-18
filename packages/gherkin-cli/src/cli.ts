@@ -1,11 +1,20 @@
 #!/usr/bin/env node
-import { realpathSync } from 'node:fs'
+import { globSync, realpathSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Command, CommanderError } from 'commander'
 import { diffFeatures, GitError } from './diff.js'
-import { type Format, fail, render, truncate, writeResult, writeStderr } from './output.js'
+import { type Format, fail, render, truncate, writeHelp, writeResult, writeStderr } from './output.js'
 import { parseFeatures, parseFeaturesAst } from './parse.js'
 import { validateFeatures } from './validate.js'
+
+/** Valid flags per subcommand, inlined into unknown-flag errors (AXI #6). */
+const FLAGS: Record<string, string[]> = {
+	parse: ['--full', '--tag <name>', '--ast', '--format <fmt>'],
+	validate: ['--format <fmt>'],
+	diff: ['--base <ref>', '--full', '--format <fmt>'],
+}
 
 function resolveFormat(raw: unknown): Format {
 	return raw === 'json' ? 'json' : 'toon'
@@ -23,6 +32,19 @@ function emit(data: unknown, format: Format, full: boolean): void {
 
 function addFormat(cmd: Command): Command {
 	return cmd.option('--format <fmt>', 'output format: toon | json', 'toon')
+}
+
+/** A missing input file — point at the discovery command, not just the failure. */
+function notFound(file: string, format: Format): void {
+	fail('ENOENT', `file not found: ${file}`, format, {
+		help: ['gherkin-cli — list the .feature files discoverable here'],
+	})
+}
+
+/** Collapse the home directory to `~` for the home view's bin line (AXI #10). */
+function displayPath(file: string): string {
+	const home = homedir()
+	return file.startsWith(home) ? file.replace(home, '~') : file
 }
 
 function buildProgram(): Command {
@@ -49,19 +71,22 @@ function buildProgram(): Command {
 			if (opts.ast) {
 				const ast = parseFeaturesAst(files)
 				const missing = ast.find((f) => f.error?.code === 'ENOENT')
-				if (missing) return fail('ENOENT', `file not found: ${missing.file}`, format)
+				if (missing) return notFound(missing.file, format)
 				return writeResult(render(ast, 'json'))
 			}
 
 			const result = parseFeatures(files, { full, tag: opts.tag })
 			const missing = result.files.find((f) => f.error?.code === 'ENOENT')
-			if (missing) return fail('ENOENT', `file not found: ${missing.file}`, format)
+			if (missing) return notFound(missing.file, format)
 
 			emit(result, format, full)
-			if (result.summary.files === 0 || result.summary.scenarios === 0) {
-				writeStderr(`0 scenarios across ${result.summary.files} files`)
+			if (result.summary.scenarios === 0) {
+				writeResult(`scenarios: 0 scenarios found across ${result.summary.files} file(s)`)
 			}
-			writeStderr(`→ gherkin-cli diff --base <ref> ${files.join(' ')}`)
+			writeHelp([
+				`gherkin-cli diff --base <ref> ${files.join(' ')}`,
+				...(full ? [] : [`gherkin-cli parse ${files.join(' ')} --full`]),
+			])
 		})
 
 	addFormat(
@@ -77,11 +102,11 @@ function buildProgram(): Command {
 			emit(result, format, false)
 
 			if (result.summary.errors === 0) {
-				writeStderr('0 errors')
-				writeStderr(`→ gherkin-cli parse ${files.join(' ')}`)
+				writeResult(`errors: 0 syntax errors across ${result.summary.files} file(s)`)
+				writeHelp([`gherkin-cli parse ${files.join(' ')}`])
 				return
 			}
-			writeStderr(`→ ${result.summary.errors} error(s) across ${result.summary.files} file(s)`)
+			writeHelp([`gherkin-cli parse <file> --ast to inspect the failing document`])
 			process.exit(1)
 		})
 
@@ -108,14 +133,83 @@ function buildProgram(): Command {
 			emit(result, format, full)
 			const { added, modified, removed } = result.summary
 			if (added + modified + removed === 0) {
-				writeStderr('0 changes (all unchanged)')
-				writeStderr(`→ gherkin-cli parse ${files.join(' ')}`)
+				writeResult(`changes: 0 scenario changes against ${opts.base} (all unchanged)`)
+				writeHelp([`gherkin-cli parse ${files.join(' ')}`])
 				return
 			}
-			writeStderr(`→ review ${added} added / ${modified} modified / ${removed} removed scenario(s)`)
+			writeHelp([
+				`gherkin-cli parse ${files.join(' ')} --full`,
+				...(full ? [] : [`gherkin-cli diff --base ${opts.base} ${files.join(' ')} --full`]),
+			])
 		})
 
 	return program
+}
+
+/** The subcommand in an argv, used to scope an unknown-flag error's flag list. */
+function preScanCommand(argv: string[]): string | undefined {
+	return argv.find((arg) => arg in FLAGS)
+}
+
+/**
+ * Translate a commander parse failure into a structured usage error: strip
+ * commander's own `error:` prefix, and inline the valid flags so the agent
+ * self-corrects without a follow-up `--help` call (AXI #6).
+ */
+function usageError(err: CommanderError, argv: string[]): void {
+	const command = preScanCommand(argv)
+	const flags = command ? FLAGS[command] : undefined
+	fail('EBADFLAG', err.message.replace(/^error:\s*/, ''), preScanFormat(argv), {
+		exitCode: 2,
+		help: flags
+			? [`valid flags for \`${command}\`: ${flags.join(', ')}`, `gherkin-cli ${command} --help`]
+			: [`valid commands: ${Object.keys(FLAGS).join(', ')}`],
+	})
+}
+
+const HOME_LIMIT = 20
+
+/**
+ * The no-args home view: what this tool is, then the .feature files in the
+ * current directory with their scenario counts (AXI #8, #10).
+ */
+export function home(cwd: string = process.cwd()): void {
+	const found = globSync('**/*.feature', { cwd, exclude: (name) => name === 'node_modules' })
+		.map((file) => relative('.', file))
+		.sort()
+	const shown = found.slice(0, HOME_LIMIT)
+	const result = parseFeatures(
+		shown.map((file) => `${cwd}/${file}`),
+		{},
+	)
+
+	writeResult(
+		render(
+			{
+				bin: displayPath(fileURLToPath(import.meta.url)),
+				description: 'Parse, validate, and diff Gherkin .feature files as token-efficient agent output',
+				count: `${shown.length} of ${found.length} total`,
+				// The zero case states itself below rather than emitting an empty
+				// array, so the agent never sees two `features:` keys disagreeing.
+				...(found.length === 0
+					? { features: '0 .feature files found in this directory' }
+					: {
+							features: shown.map((file, i) => ({
+								file,
+								scenarios: result.files[i]?.scenarioCount ?? 0,
+								tags: result.files[i]?.featureTags ?? [],
+							})),
+						}),
+			},
+			'toon',
+		),
+	)
+	writeHelp([
+		...(found.length > HOME_LIMIT ? [`gherkin-cli parse '**/*.feature' for all ${found.length} files`] : []),
+		'gherkin-cli parse <file> to summarize scenarios',
+		'gherkin-cli validate <file> to check syntax',
+		'gherkin-cli diff --base <ref> <file> to classify changes',
+	])
 }
 
 export async function main(argv: string[]): Promise<void> {
@@ -125,9 +219,10 @@ export async function main(argv: string[]): Promise<void> {
 	program.exitOverride().configureOutput(silence)
 	for (const cmd of program.commands) cmd.exitOverride().configureOutput(silence)
 
-	// Bare invocation (no subcommand) → help, exit 0 (pure dispatcher, AXI #8).
+	// Bare invocation → the live .feature inventory for this directory, not a
+	// usage manual (AXI #8): the agent can act on what it sees in one call.
 	if (argv.length === 0) {
-		writeStderr(program.helpInformation())
+		home()
 		return
 	}
 
@@ -138,7 +233,7 @@ export async function main(argv: string[]): Promise<void> {
 			if (err.code === 'commander.helpDisplayed' || err.code === 'commander.help' || err.code === 'commander.version') {
 				return
 			}
-			return fail('EBADFLAG', err.message, preScanFormat(argv))
+			return usageError(err, argv)
 		}
 		throw err
 	}
