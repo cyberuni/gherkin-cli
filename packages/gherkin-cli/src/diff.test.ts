@@ -24,7 +24,8 @@ const HEAD = `Feature: f
 `
 
 function changesByName(file: string, reader: DiffReader) {
-	const result = diffFeatures([file], { base: 'HEAD', reader })
+	// `full` so the classification itself is under test, not the default changed-only projection.
+	const result = diffFeatures([file], { base: 'HEAD', full: true, reader })
 	const map = new Map(result.files[0]!.scenarios.map((s) => [s.name, s.change]))
 	return { result, map }
 }
@@ -62,7 +63,7 @@ describe('diffFeatures (real git integration)', () => {
 		git('commit', '-qm', 'base')
 		writeFileSync(file, HEAD)
 
-		const result = diffFeatures([file], { base: 'HEAD' })
+		const result = diffFeatures([file], { base: 'HEAD', full: true })
 		const map = new Map(result.files[0]!.scenarios.map((s) => [s.name, s.change]))
 		expect(map.get('keep')).toBe('unchanged')
 		expect(map.get('change me')).toBe('modified')
@@ -91,7 +92,8 @@ describe('diffFeatures (step arguments are part of the signature)', () => {
       | ${dimension} | ${threshold} |
 `
 	const changeOf = (base: string, head: string) =>
-		diffFeatures(['f.feature'], { base: 'HEAD', reader: () => ({ head, base }) }).files[0]!.scenarios[0]!.change
+		diffFeatures(['f.feature'], { base: 'HEAD', full: true, reader: () => ({ head, base }) }).files[0]!.scenarios[0]!
+			.change
 
 	it('reports a gutted DocString rubric as modified, not unchanged', () => {
 		expect(changeOf(withDocString('warmth', '3'), withDocString('vibes', '0'))).toBe('modified')
@@ -156,6 +158,7 @@ describe('diffFeatures (step arguments are part of the signature)', () => {
 			new Map(
 				diffFeatures(['f.feature'], {
 					base: 'HEAD',
+					full: true,
 					reader: () => ({ head: text, base: `Feature: f\n${graded}` }),
 				}).files[0]!.scenarios.map((s) => [s.name, s.change]),
 			)
@@ -175,5 +178,61 @@ describe('diffFeatures (step arguments are part of the signature)', () => {
         """
 `
 		expect(changeOf(withDocString('warmth', '3'), head)).toBe('unchanged')
+	})
+})
+
+// `--full` used to be pure documentation: the help promised "include unchanged scenarios" while
+// diff always returned every scenario. The flag now selects the projection, and the invariant that
+// makes that safe is that only the ROWS change — every aggregate is computed before the filter.
+describe('diffFeatures (the --full projection)', () => {
+	const reader: DiffReader = () => ({ head: HEAD, base: BASE })
+	const kinds = (full?: boolean) =>
+		diffFeatures(['f.feature'], { base: 'HEAD', full, reader }).files[0]!.scenarios.map((s) => s.change)
+
+	it('omits unchanged scenarios by default', () => {
+		expect(kinds()).toEqual(['modified', 'added', 'removed'])
+	})
+
+	it('includes unchanged scenarios with full', () => {
+		expect(kinds(true)).toEqual(['unchanged', 'modified', 'added', 'removed'])
+	})
+
+	// The aggregate is the whole point of the projection being safe to slim: a consumer that reads
+	// `summary.unchanged` still learns how many were unchanged without paying for the rows.
+	it('counts unchanged in the summary either way', () => {
+		for (const full of [undefined, true]) {
+			expect(diffFeatures(['f.feature'], { base: 'HEAD', full, reader }).summary).toMatchObject({
+				added: 1,
+				modified: 1,
+				removed: 1,
+				unchanged: 1,
+			})
+		}
+	})
+
+	// `addOnly` is derived from the classification, not from the emitted rows — filtering unchanged
+	// rows must not perturb it in either direction.
+	it('reports the same addOnly flags either way', () => {
+		const additive: DiffReader = () => ({ head: HEAD, base: undefined })
+		for (const [read, expected] of [
+			[reader, false],
+			[additive, true],
+		] as const) {
+			for (const full of [undefined, true]) {
+				const result = diffFeatures(['f.feature'], { base: 'HEAD', full, reader: read })
+				expect(result.summary.addOnly).toBe(expected)
+				expect(result.files[0]!.addOnly).toBe(expected)
+			}
+		}
+	})
+
+	// An all-unchanged file must still be listed — an empty `scenarios` list is the answer ("nothing
+	// moved here"), not a reason to drop the file from the result.
+	it('keeps a file whose scenarios are all unchanged, with an empty scenario list', () => {
+		const same: DiffReader = () => ({ head: BASE, base: BASE })
+		const result = diffFeatures(['f.feature'], { base: 'HEAD', reader: same })
+		expect(result.files).toHaveLength(1)
+		expect(result.files[0]!.scenarios).toEqual([])
+		expect(result.summary).toMatchObject({ files: 1, unchanged: 3, addOnly: true })
 	})
 })

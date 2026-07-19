@@ -126,7 +126,7 @@ function buildProgram(): Command {
 			.description('Classify scenario changes against a base git ref')
 			.argument('<files...>', '.feature files to diff')
 			.requiredOption('--base <ref>', 'base git ref to compare against')
-			.option('--full', 'include unchanged scenarios in full detail'),
+			.option('--full', 'also list unchanged scenarios (default: changed only)'),
 	)
 		.addHelpText('after', '\nExample:\n  $ gherkin-cli diff features/login.feature --base HEAD~1')
 		.action((files: string[], opts, command: Command) => {
@@ -134,7 +134,7 @@ function buildProgram(): Command {
 			const full = Boolean(opts.full)
 			let result: ReturnType<typeof diffFeatures>
 			try {
-				result = diffFeatures(files, { base: opts.base })
+				result = diffFeatures(files, { base: opts.base, full })
 			} catch (err) {
 				if (err instanceof GitError) return fail('EGIT', err.message, format)
 				throw err

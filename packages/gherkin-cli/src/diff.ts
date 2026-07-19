@@ -33,6 +33,8 @@ export type DiffReader = (file: string, base: string) => { head?: string; base?:
 
 export interface DiffOptions {
 	base: string
+	/** Include `unchanged` scenarios in each file's `scenarios` list. Off by default. */
+	full?: boolean
 	reader?: DiffReader
 }
 
@@ -174,6 +176,12 @@ function classifyFile(file: string, head: string | undefined, base: string | und
  * Classify each file's scenarios against its `--base` version. Git/ref failures
  * surface as a thrown `GitError` for the CLI to convert into `fail('EGIT', …)`;
  * parse failures surface as a per-file `error` field (no throw).
+ *
+ * The default projection lists only the *changed* scenarios — a diff's answer is
+ * what moved, and an unchanged suite of 200 scenarios should not cost 200 rows.
+ * `full` restores the unchanged rows. Either way the classification itself is
+ * over the whole file: `summary.unchanged` and both `addOnly` flags are computed
+ * before the projection, so no aggregate depends on the flag.
  */
 export function diffFeatures(paths: string[], opts: DiffOptions): DiffResult {
 	const reader = opts.reader ?? gitReader
@@ -187,5 +195,9 @@ export function diffFeatures(paths: string[], opts: DiffOptions): DiffResult {
 		for (const s of f.scenarios) summary[s.change] += 1
 	}
 	summary.addOnly = summary.modified === 0 && summary.removed === 0
+
+	if (!opts.full) {
+		for (const f of files) f.scenarios = f.scenarios.filter((s) => s.change !== 'unchanged')
+	}
 	return { summary, files }
 }
