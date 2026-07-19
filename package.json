@@ -13,7 +13,8 @@
 		"test": "turbo run test",
 		"typecheck": "turbo run typecheck",
 		"verify": "turbo run build typecheck test",
-		"version": "changeset version"
+		"version": "changeset version",
+		"web": "pnpm run --filter=website"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.16",
