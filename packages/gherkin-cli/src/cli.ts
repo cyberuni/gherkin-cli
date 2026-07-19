@@ -41,6 +41,18 @@ function notFound(file: string, format: Format): void {
 	})
 }
 
+/**
+ * The file argument to echo back in a next-step command (AXI #9).
+ *
+ * One file names itself — the agent can copy the suggestion verbatim. A batch
+ * collapses to the `<files...>` placeholder: echoing a 26-path list twice per
+ * run made the help block the most expensive thing on stdout, defeating the
+ * token-saving affordance it is meant to be.
+ */
+export function fileArg(files: string[]): string {
+	return files.length === 1 ? String(files[0]) : '<files...>'
+}
+
 /** Collapse the home directory to `~` for the home view's bin line (AXI #10). */
 function displayPath(file: string): string {
 	const home = homedir()
@@ -83,10 +95,8 @@ function buildProgram(): Command {
 			if (result.summary.scenarios === 0) {
 				writeResult(`scenarios: 0 scenarios found across ${result.summary.files} file(s)`)
 			}
-			writeHelp([
-				`gherkin-cli diff --base <ref> ${files.join(' ')}`,
-				...(full ? [] : [`gherkin-cli parse ${files.join(' ')} --full`]),
-			])
+			const arg = fileArg(files)
+			writeHelp([`gherkin-cli diff --base <ref> ${arg}`, ...(full ? [] : [`gherkin-cli parse ${arg} --full`])])
 		})
 
 	addFormat(
@@ -103,7 +113,7 @@ function buildProgram(): Command {
 
 			if (result.summary.errors === 0) {
 				writeResult(`errors: 0 syntax errors across ${result.summary.files} file(s)`)
-				writeHelp([`gherkin-cli parse ${files.join(' ')}`])
+				writeHelp([`gherkin-cli parse ${fileArg(files)}`])
 				return
 			}
 			writeHelp([`gherkin-cli parse <file> --ast to inspect the failing document`])
@@ -131,15 +141,16 @@ function buildProgram(): Command {
 			}
 
 			emit(result, format, full)
+			const arg = fileArg(files)
 			const { added, modified, removed } = result.summary
 			if (added + modified + removed === 0) {
 				writeResult(`changes: 0 scenario changes against ${opts.base} (all unchanged)`)
-				writeHelp([`gherkin-cli parse ${files.join(' ')}`])
+				writeHelp([`gherkin-cli parse ${arg}`])
 				return
 			}
 			writeHelp([
-				`gherkin-cli parse ${files.join(' ')} --full`,
-				...(full ? [] : [`gherkin-cli diff --base ${opts.base} ${files.join(' ')} --full`]),
+				`gherkin-cli parse ${arg} --full`,
+				...(full ? [] : [`gherkin-cli diff --base ${opts.base} ${arg} --full`]),
 			])
 		})
 
