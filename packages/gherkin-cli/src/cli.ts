@@ -116,7 +116,7 @@ function buildProgram(): Command {
 				writeHelp([`gherkin-cli parse ${fileArg(files)}`])
 				return
 			}
-			writeHelp([`gherkin-cli parse <file> --ast to inspect the failing document`])
+			writeHelp(['gherkin-cli parse <file> --ast to inspect the failing document'])
 			process.exit(1)
 		})
 
