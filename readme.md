@@ -25,7 +25,7 @@ Emits a TOON manifest — per file: feature tags, scenario count, section-commen
 Reports Gherkin syntax validity. Exit `0` when all files parse, `1` when any fails, with structured `file:line: code message` errors honoring `--format`.
 
 ### `diff <files…> --base <gitref>`
-Classifies each scenario as `added` / `modified` / `removed` / `unchanged` against `--base`. Carries an `addOnly` aggregate — `true` means the change is purely additive.
+Classifies each scenario as `added` / `modified` / `removed` / `unchanged` against `--base`. Lists only the *changed* scenarios by default; `--full` also lists the `unchanged` ones. The classification is always over the whole file, so `summary.unchanged` and the `addOnly` aggregate — `true` means the change is purely additive — read the same either way.
 
 ## Development
 
