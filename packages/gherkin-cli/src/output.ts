@@ -160,7 +160,7 @@ export function fail(
 	const body =
 		format === 'json'
 			? JSON.stringify({ error: { code, message }, help }, null, 2)
-			: [`error: true`, `code: ${code}`, `message: ${formatScalar(message)}`, ...formatHelp(help)].join('\n')
+			: ['error: true', `code: ${code}`, `message: ${formatScalar(message)}`, ...formatHelp(help)].join('\n')
 	writeResult(body, opts.out)
 	;(opts.exit ?? process.exit)(opts.exitCode ?? 1)
 }
