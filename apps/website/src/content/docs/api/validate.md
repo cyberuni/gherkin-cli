@@ -3,7 +3,7 @@ title: validateFeatures
 description: Check .feature well-formedness as a return value, not an exit code.
 ---
 
-`validateFeatures(paths: string[]): ValidateResult` parses each `.feature` file and returns a
+`validateFeatures(paths: string[], opts?: ValidateOptions): ValidateResult` parses each `.feature` file and returns a
 result reporting whether each is well-formed Gherkin. Per file it carries `ok` plus an `errors`
 list of `{line, message, code}`; the result carries a `summary {files, errors}`. It is pure: it
 returns a value and never exits. The exit-code gate (`1` on any error) is a CLI concern layered on
@@ -24,9 +24,10 @@ if (result.summary.errors > 0) {
 
 ## Parameters
 
-| Param   | Type       | Description                       |
-| ------- | ---------- | --------------------------------- |
-| `paths` | `string[]` | The `.feature` files to validate. |
+| Param         | Type            | Description                                                    |
+| ------------- | --------------- | -------------------------------------------------------------- |
+| `paths`       | `string[]`      | The `.feature` files to validate.                              |
+| `opts.reader` | `FileReader`    | Injectable filesystem seam (default `nodeFileReader`) — pass a fake to test without disk. |
 
 ## Behavior
 
@@ -37,6 +38,9 @@ if (result.summary.errors > 0) {
   code.
 - The engine never exits or gates; the CLI maps any error to exit `1`.
 - The result carries a pre-computed `summary {files, errors}`.
+- `{ reader }` injects the filesystem seam (a `FileReader`, default `nodeFileReader`), so you can
+  validate in-memory text with no disk access. See
+  [Testing without disk or git](/gherkin-cli/api/overview/#testing-without-disk-or-git).
 
 ## See also
 
