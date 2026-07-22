@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs'
 import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherkin'
 import { IdGenerator } from '@cucumber/messages'
+import { type FileReader, nodeFileReader } from './reader.js'
 
 export interface ParseStep {
 	keyword: string
@@ -39,6 +39,8 @@ export interface ParseResult {
 export interface ParseOptions {
 	full?: boolean
 	tag?: string
+	/** Injectable filesystem seam (default {@link nodeFileReader}) — pass a fake to test without disk. */
+	reader?: FileReader
 }
 
 /** Build a fresh parser with a deterministic (incrementing) id generator. */
@@ -105,9 +107,10 @@ function projectDoc(
 }
 
 function parseOne(path: string, opts: ParseOptions): ParseFile {
+	const read = opts.reader ?? nodeFileReader
 	let text: string
 	try {
-		text = readFileSync(path, 'utf8')
+		text = read(path)
 	} catch (err) {
 		return {
 			file: path,
@@ -164,11 +167,12 @@ export interface ParseAstFile {
 }
 
 /** Dump the raw GherkinDocument for each file (backs `parse --ast`). */
-export function parseFeaturesAst(paths: string[]): ParseAstFile[] {
+export function parseFeaturesAst(paths: string[], opts: ParseOptions = {}): ParseAstFile[] {
+	const read = opts.reader ?? nodeFileReader
 	return paths.map((path) => {
 		let text: string
 		try {
-			text = readFileSync(path, 'utf8')
+			text = read(path)
 		} catch (err) {
 			return { file: path, error: { code: 'ENOENT', line: 0, message: (err as Error).message } }
 		}

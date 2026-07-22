@@ -55,3 +55,24 @@ describe('validateFeatures', () => {
 		expect(result.files[0]!.errors[0]!.code).toBe('ENOENT')
 	})
 })
+
+describe('injectable reader', () => {
+	it('validates text from an injected reader without touching the filesystem', () => {
+		const reader = (p: string) => {
+			expect(p).toBe('in-memory.feature')
+			return 'Feature: f\n  Scenario: s\n    Given x\n    Then y\n'
+		}
+		const result = validateFeatures(['in-memory.feature'], { reader })
+		expect(result.files[0]!.ok).toBe(true)
+		expect(result.summary.errors).toBe(0)
+	})
+
+	it('surfaces ENOENT when an injected reader throws', () => {
+		const reader = () => {
+			throw new Error('nope')
+		}
+		const result = validateFeatures(['ghost.feature'], { reader })
+		expect(result.files[0]!.ok).toBe(false)
+		expect(result.files[0]!.errors[0]!.code).toBe('ENOENT')
+	})
+})

@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs'
 import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherkin'
 import { IdGenerator } from '@cucumber/messages'
+import { type FileReader, nodeFileReader } from './reader.js'
 
 export interface ValidateError {
 	line: number
@@ -19,16 +19,19 @@ export interface ValidateResult {
 	files: ValidateFile[]
 }
 
-export type ValidateOptions = Record<string, never>
+export interface ValidateOptions {
+	/** Injectable filesystem seam (default {@link nodeFileReader}) — pass a fake to test without disk. */
+	reader?: FileReader
+}
 
 function newParser(): Parser<unknown> {
 	return new Parser(new AstBuilder(IdGenerator.incrementing()), new GherkinClassicTokenMatcher())
 }
 
-function validateOne(path: string): ValidateFile {
+function validateOne(path: string, read: FileReader): ValidateFile {
 	let text: string
 	try {
-		text = readFileSync(path, 'utf8')
+		text = read(path)
 	} catch (err) {
 		return { file: path, ok: false, errors: [{ line: 0, message: (err as Error).message, code: 'ENOENT' }] }
 	}
@@ -52,8 +55,9 @@ function validateOne(path: string): ValidateFile {
 }
 
 /** Parse each file and collect syntax errors. The CLI exits 1 if any file is invalid. */
-export function validateFeatures(paths: string[], _opts: ValidateOptions = {}): ValidateResult {
-	const files = paths.map(validateOne)
+export function validateFeatures(paths: string[], opts: ValidateOptions = {}): ValidateResult {
+	const read = opts.reader ?? nodeFileReader
+	const files = paths.map((path) => validateOne(path, read))
 	return {
 		summary: { files: files.length, errors: files.reduce((sum, f) => sum + f.errors.length, 0) },
 		files,

@@ -147,3 +147,33 @@ describe('parseFeaturesAst', () => {
 		expect(entry!.error?.code).toBe('ENOENT')
 	})
 })
+
+describe('injectable reader', () => {
+	it('projects text from an injected reader without touching the filesystem', () => {
+		let touched = false
+		const reader = (p: string) => {
+			touched = true
+			expect(p).toBe('in-memory.feature')
+			return 'Feature: F\n  Scenario: S\n    Given a\n    Then b\n'
+		}
+		const result = parseFeatures(['in-memory.feature'], { reader })
+		expect(touched).toBe(true)
+		expect(result.files[0]!.scenarios.map((s) => s.name)).toEqual(['S'])
+		expect(result.files[0]!.error).toBeUndefined()
+	})
+
+	it('surfaces ENOENT when an injected reader throws, without propagating', () => {
+		const reader = () => {
+			throw new Error('nope')
+		}
+		const result = parseFeatures(['ghost.feature'], { reader })
+		expect(result.files[0]!.error?.code).toBe('ENOENT')
+	})
+
+	it('parseFeaturesAst also reads through an injected reader', () => {
+		const reader = () => 'Feature: F\n  Scenario: S\n    Given a\n    Then b\n'
+		const ast = parseFeaturesAst(['in-memory.feature'], { reader })
+		expect(ast[0]!.ast).toBeDefined()
+		expect(ast[0]!.error).toBeUndefined()
+	})
+})

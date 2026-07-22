@@ -13,9 +13,22 @@ it('exposes the pure engine functions', () => {
 	expect(typeof api.GitError).toBe('function')
 })
 
+it('exposes the injectable readers and their node defaults', () => {
+	expect(typeof api.nodeFileReader).toBe('function')
+	expect(typeof api.gitReader).toBe('function')
+})
+
 it('exports exactly the pure engine surface — no more', () => {
 	expect(Object.keys(api).sort()).toEqual(
-		['GitError', 'diffFeatures', 'parseFeatures', 'parseFeaturesAst', 'validateFeatures'].sort(),
+		[
+			'GitError',
+			'diffFeatures',
+			'gitReader',
+			'nodeFileReader',
+			'parseFeatures',
+			'parseFeaturesAst',
+			'validateFeatures',
+		].sort(),
 	)
 })
 

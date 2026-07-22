@@ -15,7 +15,7 @@
  * runs the CLI, writes to stdout, or exits the process.
  */
 export type { ChangeKind, DiffFile, DiffFileError, DiffOptions, DiffReader, DiffResult, DiffScenario } from './diff.js'
-export { diffFeatures, GitError } from './diff.js'
+export { diffFeatures, GitError, gitReader } from './diff.js'
 export type {
 	ParseAstFile,
 	ParseFile,
@@ -26,5 +26,9 @@ export type {
 	ParseStep,
 } from './parse.js'
 export { parseFeatures, parseFeaturesAst } from './parse.js'
+// The injectable filesystem seam and its node default — pass a FileReader to
+// parseFeatures / validateFeatures to drive them from fixtures with no disk
+// access (the counterpart to DiffReader / gitReader for diffFeatures).
+export { type FileReader, nodeFileReader } from './reader.js'
 export type { ValidateError, ValidateFile, ValidateOptions, ValidateResult } from './validate.js'
 export { validateFeatures } from './validate.js'
