@@ -4,10 +4,12 @@ import { homedir } from 'node:os'
 import { relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Command, CommanderError } from 'commander'
-import { diffFeatures, GitError } from './diff.js'
+// Consume the engines through the public API barrel (`./index.js`), the same
+// surface a programmatic consumer imports — the CLI is a client of the library.
+// `./output.js` is imported directly: it is the CLI-only render/stream layer,
+// deliberately kept out of the public API (see index.ts).
+import { diffFeatures, GitError, parseFeatures, parseFeaturesAst, validateFeatures } from './index.js'
 import { type Format, fail, render, truncate, writeHelp, writeResult, writeStderr } from './output.js'
-import { parseFeatures, parseFeaturesAst } from './parse.js'
-import { validateFeatures } from './validate.js'
 
 /** Valid flags per subcommand, inlined into unknown-flag errors (AXI #6). */
 const FLAGS: Record<string, string[]> = {
