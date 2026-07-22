@@ -1,9 +1,9 @@
 ---
-title: diffFeatures
+title: diff
 description: Classify scenario changes against a git base, throwing GitError on an unresolvable ref.
 ---
 
-`diffFeatures(paths: string[], opts: DiffOptions): DiffResult` compares each `.feature` file's
+`diff(paths: string[], opts: DiffOptions, deps?: ReadsGitDiff): DiffResult` compares each `.feature` file's
 working-tree text against its text at `opts.base` and classifies every scenario as `added`,
 `modified`, `removed`, or `unchanged`. Each file carries an `addOnly` flag and the result carries
 a `summary {added, modified, removed, unchanged, files, addOnly}` — `addOnly` is `true` when only
@@ -11,10 +11,10 @@ new scenarios were introduced and no existing one was touched. A genuine git/ref
 `GitError`; the engine itself never prints or exits.
 
 ```ts
-import { diffFeatures, GitError } from 'gherkin-cli'
+import { diff, GitError } from 'gherkin-cli'
 
 try {
-	const result = diffFeatures(['features/login.feature'], { base: 'HEAD~1' })
+	const result = diff(['features/login.feature'], { base: 'HEAD~1' })
 	if (result.summary.addOnly) {
 		console.log('purely additive change')
 	}
@@ -34,12 +34,12 @@ try {
 
 ## Parameters
 
-| Param          | Type         | Description                                                          |
-| -------------- | ------------ | -------------------------------------------------------------------- |
-| `paths`        | `string[]`   | The `.feature` files to classify.                                    |
-| `opts.base`    | `string`     | Base git ref to compare against (required).                          |
-| `opts.full`    | `boolean`    | Include `unchanged` scenarios in each file's `scenarios` list.       |
-| `opts.reader`  | `DiffReader` | Injectable reader for working-tree and base text (default reads git).|
+| Param            | Type           | Description                                                          |
+| ---------------- | -------------- | -------------------------------------------------------------------- |
+| `paths`          | `string[]`     | The `.feature` files to classify.                                    |
+| `opts.base`      | `string`       | Base git ref to compare against (required).                          |
+| `opts.full`      | `boolean`      | Include `unchanged` scenarios in each file's `scenarios` list.       |
+| `deps.readDiff`  | `ReadsGitDiff` | Injected reader for working-tree and base text (separate 3rd arg, default reads git).|
 
 ## Behavior
 
@@ -51,12 +51,13 @@ try {
   both `addOnly` flags are computed before the projection.
 - An unresolvable base ref **throws** `GitError` — the engine does not print or exit; the caller
   (or the CLI) catches it.
-- `reader?` is an injectable `DiffReader` — `(file, base) => { head?, base? }` — so the engine is
-  testable without touching git. The default `gitReader` reads working-tree text from the
-  filesystem and base text from `git show <ref>:<path>`.
+- The git seam is a separate 3rd `deps` argument — a `ReadsGitDiff` role interface with a
+  `readDiff(file, base) => { head?, base? }` method — so the engine is testable without touching
+  git. The default `gitReadsDiff` reads working-tree text from the filesystem and base text from
+  `git show <ref>:<path>`.
 
 ## See also
 
 - [diff](/gherkin-cli/cli/diff/) — the same classification as a command you run.
-- [parseFeatures](/gherkin-cli/api/parse/) — project a suite into a compact digest.
-- [validateFeatures](/gherkin-cli/api/validate/) — check well-formedness.
+- [parse](/gherkin-cli/api/parse/) — project a suite into a compact digest.
+- [validate](/gherkin-cli/api/validate/) — check well-formedness.

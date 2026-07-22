@@ -36,5 +36,5 @@ gherkin-cli diff features/login.feature --base HEAD~1
 
 - [parse](/gherkin-cli/cli/parse/) — project a suite into a compact digest.
 - [validate](/gherkin-cli/cli/validate/) — check well-formedness with a gating exit code.
-- [diffFeatures](/gherkin-cli/api/diff/) — the same classification as an imported function.
+- [diff](/gherkin-cli/api/diff/) — the same classification as an imported function.
 - [AXI output contract](/gherkin-cli/concepts/axi/) — the shared conventions behind this output.

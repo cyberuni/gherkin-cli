@@ -42,9 +42,9 @@ export default defineConfig({
 					label: 'API Reference',
 					items: [
 						{ label: 'Overview', slug: 'api/overview' },
-						{ label: 'parseFeatures', slug: 'api/parse' },
-						{ label: 'validateFeatures', slug: 'api/validate' },
-						{ label: 'diffFeatures', slug: 'api/diff' },
+						{ label: 'parse', slug: 'api/parse' },
+						{ label: 'validate', slug: 'api/validate' },
+						{ label: 'diff', slug: 'api/diff' },
 					],
 				},
 				{

@@ -11,8 +11,8 @@ agents that read and reason over Gherkin suites.
 
 It ships two surfaces over the same three capabilities: a **CLI** you run and a **programmatic
 API** you `import`. The [CLI Reference](/gherkin-cli/cli/parse/) documents the commands; the
-[API Reference](/gherkin-cli/api/overview/) documents the pure engines (`parseFeatures`,
-`validateFeatures`, `diffFeatures`) you call directly, with no stream write and no `process.exit`.
+[API Reference](/gherkin-cli/api/overview/) documents the pure engines (`parse`,
+`validate`, `diff`) you call directly, with no stream write and no `process.exit`.
 
 The three capabilities:
 
