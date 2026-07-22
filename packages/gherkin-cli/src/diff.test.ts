@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { type DiffReader, diffFeatures } from './diff.js'
+import { type DiffReader, diffFeatures, GitError } from './diff.js'
 
 const BASE = `Feature: f
   Scenario: keep
@@ -48,6 +48,18 @@ describe('diffFeatures (injected reader)', () => {
 		expect(result.summary.addOnly).toBe(true)
 		expect(result.files[0]!.addOnly).toBe(true)
 	})
+
+	// api/diff "renaming a scenario reads as add plus remove": identity is the scenario
+	// name, so a same-steps rename is a remove of the old name plus an add of the new.
+	it('reads a rename as add plus remove (name is the identity)', () => {
+		const base = 'Feature: f\n  Scenario: original\n    Given x\n'
+		const head = 'Feature: f\n  Scenario: renamed\n    Given x\n'
+		const reader: DiffReader = () => ({ head, base })
+		const { result, map } = changesByName('f.feature', reader)
+		expect(map.get('original')).toBe('removed')
+		expect(map.get('renamed')).toBe('added')
+		expect(result.summary.addOnly).toBe(false)
+	})
 })
 
 describe('diffFeatures (real git integration)', () => {
@@ -69,6 +81,42 @@ describe('diffFeatures (real git integration)', () => {
 		expect(map.get('change me')).toBe('modified')
 		expect(map.get('brand new')).toBe('added')
 		expect(map.get('drop me')).toBe('removed')
+	})
+
+	// api/diff "an unresolvable base ref throws GitError from the engine": the real git
+	// path (no injected reader) must THROW rather than print or exit — that is the whole
+	// reason the CLI wraps diffFeatures in a try/catch. Only the CLI catch is tested
+	// elsewhere; this pins the engine's own throw.
+	it('throws GitError from the real git path on an unresolvable base ref', () => {
+		const dir = mkdtempSync(path.join(tmpdir(), 'gherkin-diff-git-'))
+		const file = path.join(dir, 'f.feature')
+		const git = (...args: string[]) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' })
+		git('init', '-q')
+		git('config', 'user.email', 'test@example.com')
+		git('config', 'user.name', 'Test')
+		writeFileSync(file, BASE)
+		git('add', 'f.feature')
+		git('commit', '-qm', 'base')
+
+		expect(() => diffFeatures([file], { base: 'does-not-exist-ref' })).toThrow(GitError)
+	})
+})
+
+// api/diff purely-additive fixture: base has A and B, head adds C and touches neither.
+// C is `added`, A and B stay `unchanged`, and the file/summary read `addOnly: true`.
+// Tightens the "purely additive" and "new scenario, existing unchanged" scenarios.
+describe('diffFeatures (purely additive)', () => {
+	it('adds C while leaving A and B unchanged, addOnly true', () => {
+		const base = 'Feature: f\n  Scenario: A\n    Given a\n  Scenario: B\n    Given b\n'
+		const head = 'Feature: f\n  Scenario: A\n    Given a\n  Scenario: B\n    Given b\n  Scenario: C\n    Given c\n'
+		const reader: DiffReader = () => ({ head, base })
+		const result = diffFeatures(['f.feature'], { base: 'HEAD', full: true, reader })
+		const map = new Map(result.files[0]!.scenarios.map((s) => [s.name, s.change]))
+		expect(map.get('C')).toBe('added')
+		expect(map.get('A')).toBe('unchanged')
+		expect(map.get('B')).toBe('unchanged')
+		expect(result.files[0]!.addOnly).toBe(true)
+		expect(result.summary.addOnly).toBe(true)
 	})
 })
 

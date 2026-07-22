@@ -33,6 +33,23 @@ Feature: Login
 
 const malformed = fixture('bad.feature', 'Feature: f\n  Scenario: s\n    Given x\n  Then y\n  @tag\nGarbage:::\n')
 
+const outline = fixture(
+	'outline.feature',
+	`Feature: Login variants
+
+  Scenario Outline: Login as <role>
+    Given a <role> user
+    When they submit credentials
+    Then they reach the dashboard
+
+    Examples:
+      | role  |
+      | admin |
+      | guest |
+      | staff |
+`,
+)
+
 describe('parseFeatures', () => {
 	it('projects the default shape (no step detail)', () => {
 		const result = parseFeatures([valid])
@@ -63,6 +80,42 @@ describe('parseFeatures', () => {
 		const file = parseFeatures([valid], { tag: '@smoke' }).files[0]!
 		expect(file.scenarioCount).toBe(1)
 		expect(file.scenarios.map((s) => s.name)).toEqual(['Successful login'])
+	})
+
+	// api/parse "tag matching ignores a leading @ on the filter": `smoke` (no @) must
+	// match the @smoke scenario exactly as `@smoke` does — normalizeTag strips the @.
+	it('--tag matching ignores a leading @ on the filter', () => {
+		const file = parseFeatures([valid], { tag: 'smoke' }).files[0]!
+		expect(file.scenarioCount).toBe(1)
+		expect(file.scenarios.map((s) => s.name)).toEqual(['Successful login'])
+	})
+
+	// api/parse "--full counts a Scenario Outline's Examples rows": exampleRows is the
+	// summed table-body row count across the scenario's Examples blocks. The default
+	// suite only ever has flat scenarios, so exampleRows is asserted as 0 everywhere
+	// else — this pins the actual row-counting path against a 3-row Examples table.
+	it("--full counts a Scenario Outline's Examples rows alongside stepCount and steps", () => {
+		const file = parseFeatures([outline], { full: true }).files[0]!
+		const first = file.scenarios[0]!
+		expect(first.keyword).toBe('Scenario Outline')
+		expect(first.exampleRows).toBe(3)
+		expect(first.stepCount).toBe(3)
+		expect(first.steps).toEqual([
+			{ keyword: 'Given', text: 'a <role> user' },
+			{ keyword: 'When', text: 'they submit credentials' },
+			{ keyword: 'Then', text: 'they reach the dashboard' },
+		])
+	})
+
+	// api/parse "the summary aggregates across every file": files is the input count
+	// and scenarios is the sum over all files. Every other call passes one file, so
+	// multi-file aggregation is otherwise unexercised.
+	it('aggregates files and scenarios across a multi-file batch', () => {
+		const result = parseFeatures([valid, outline, valid])
+		expect(result.summary.files).toBe(3)
+		// valid has 2 scenarios, outline has 1 — 2 + 1 + 2 = 5 across the three files.
+		expect(result.summary.scenarios).toBe(5)
+		expect(result.summary.scenarios).toBe(result.files.reduce((n, f) => n + f.scenarioCount, 0))
 	})
 
 	it('records a malformed file as an EPARSE error without throwing (best-effort, exit 0)', () => {

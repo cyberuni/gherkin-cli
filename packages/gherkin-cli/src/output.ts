@@ -138,7 +138,11 @@ export function writeResult(text: string, out: Writable = process.stdout): void 
 	writeLine(out, text)
 }
 
-/** Write a human affordance (next-step, warning) to STDERR. */
+/**
+ * Write to STDERR — reserved for the top-level uncaught-exception fallback only.
+ * The agent-consumed output (result, structured errors, next-step hints, empty
+ * states) all go to stdout via writeResult; stderr stays empty on any normal run.
+ */
 export function writeStderr(text: string, err: Writable = process.stderr): void {
 	writeLine(err, text)
 }

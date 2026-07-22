@@ -32,6 +32,23 @@ describe('validateFeatures', () => {
 		expect(file.errors[0]!.line).toBe(5)
 	})
 
+	// api/validate "a mixed batch marks each file independently": in a single call the
+	// valid file stays ok and the invalid one is not, and summary.errors counts only the
+	// invalid one — the valid file does not contaminate its neighbour's verdict.
+	it('marks each file independently in a mixed batch and counts only the failures', () => {
+		const result = validateFeatures([valid, invalid])
+		expect(result.files[0]!.ok).toBe(true)
+		expect(result.files[0]!.errors).toEqual([])
+		expect(result.files[1]!.ok).toBe(false)
+		expect(result.files[1]!.errors[0]!.code).toBe('EPARSE')
+		// summary.errors sums error entries and reflects only the invalid file — the valid
+		// one contributes zero, so the total equals the invalid file's own error count.
+		expect(result.files[0]!.errors).toHaveLength(0)
+		expect(result.summary.files).toBe(2)
+		expect(result.summary.errors).toBe(result.files[1]!.errors.length)
+		expect(result.summary.errors).toBeGreaterThan(0)
+	})
+
 	it('reports a missing file as not ok', () => {
 		const result = validateFeatures([path.join(dir, 'missing.feature')])
 		expect(result.files[0]!.ok).toBe(false)
