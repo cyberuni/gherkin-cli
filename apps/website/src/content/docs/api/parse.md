@@ -42,12 +42,26 @@ for (const file of result.files) {
 - A missing file yields an `error {code: 'ENOENT', line, message}` entry — again no throw and no
   exit. The engine returns it; the CLI decides what to do with it.
 - The result carries a pre-computed `summary {files, scenarios, errors}`.
-- `parseAst` returns a `ParseAstFile[]` — each `{file, ast}` holds the raw cucumber
-  `GherkinDocument`, or `{file, error}` for a malformed or missing file.
 - The filesystem seam is a separate 3rd `deps` argument — a `ReadsFile` role interface (default
   `nodeReadsFile`), not an option — so you can drive `parse` and `parseAst` from in-memory text
   with no disk access. See
   [Testing without disk or git](/gherkin-cli/api/overview/#testing-without-disk-or-git).
+
+## parseAst
+
+`parseAst(paths: string[], opts?: ParseOptions, deps?: ReadsFile): ParseAstFile[]` returns the
+**raw cucumber `GherkinDocument`** for each file, rather than the compact projection — the escape
+hatch when you need structure `parse` drops (step locations, doc-strings, comments, keywords).
+
+```ts
+import { parseAst } from 'gherkin-cli'
+
+const [file] = parseAst(['features/login.feature'])
+console.log(file.ast) // the raw GherkinDocument, or file.error for a malformed/missing file
+```
+
+Each entry is `{file, ast}` on success, or `{file, error}` (`EPARSE` / `ENOENT`) for a malformed or
+missing file — same no-throw contract as `parse`. It backs the CLI's `parse --ast` flag.
 
 ## See also
 

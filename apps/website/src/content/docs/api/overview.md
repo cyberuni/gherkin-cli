@@ -7,7 +7,7 @@ The `.` barrel is the entrypoint a programmatic consumer imports. It exposes **o
 engines and their types:
 
 ```ts
-import { parse, parseAst, validate, diff, GitError } from 'gherkin-cli'
+import { parse, parseAst, validate, diff } from 'gherkin-cli'
 ```
 
 Each engine reads `.feature` source and returns a structured result carrying a pre-computed
@@ -50,8 +50,9 @@ than replace them.
 
 ## The engines
 
-- [`parse`](/gherkin-cli/api/parse/) — project a suite into a compact digest (plus
-  `parseAst` for the raw AST).
+- [`parse`](/gherkin-cli/api/parse/) — project a suite into a compact scenario/tag/count digest.
+- [`parseAst`](/gherkin-cli/api/parse/#parseast) — the raw cucumber `GherkinDocument` per file, for
+  when the projection isn't enough.
 - [`validate`](/gherkin-cli/api/validate/) — check `.feature` well-formedness.
 - [`diff`](/gherkin-cli/api/diff/) — classify scenario changes against a git base.
 
