@@ -39,6 +39,15 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'API Reference',
+					items: [
+						{ label: 'Overview', slug: 'api/overview' },
+						{ label: 'parseFeatures', slug: 'api/parse' },
+						{ label: 'validateFeatures', slug: 'api/validate' },
+						{ label: 'diffFeatures', slug: 'api/diff' },
+					],
+				},
+				{
 					label: 'Concepts',
 					items: [
 						{ label: 'AXI output contract', slug: 'concepts/axi' },

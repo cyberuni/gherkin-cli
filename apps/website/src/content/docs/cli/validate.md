@@ -31,4 +31,5 @@ gherkin-cli validate features/login.feature
 
 - [parse](/gherkin-cli/cli/parse/) — project a suite into a compact digest.
 - [diff](/gherkin-cli/cli/diff/) — classify scenario changes against a git ref.
+- [validateFeatures](/gherkin-cli/api/validate/) — the same check as an imported function.
 - [AXI output contract](/gherkin-cli/concepts/axi/) — the shared conventions behind this output.
