@@ -5,7 +5,7 @@ Feature: surface — the export contract and CLI-layer firewall
   Scenario: the barrel exports the pure engines and GitError
     Given the gherkin-cli package barrel
     When its exports are inspected
-    Then it exports parseFeatures, parseFeaturesAst, validateFeatures, and diffFeatures
+    Then it exports parse, parseAst, validate, and diff
     And it exports the GitError class
     And it exports the types each engine returns and accepts
 
@@ -27,5 +27,5 @@ Feature: surface — the export contract and CLI-layer firewall
   Scenario: the barrel exposes the injectable readers and their node defaults
     Given the gherkin-cli package barrel
     When its exports are inspected
-    Then it exports the FileReader and DiffReader seam types
-    And it exports nodeFileReader and gitReader as the node defaults
+    Then it exports the ReadsFile and ReadsGitDiff seam types
+    And it exports nodeReadsFile and gitReadsDiff as the node defaults

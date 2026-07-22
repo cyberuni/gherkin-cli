@@ -11,7 +11,7 @@ An agent-first Gherkin toolkit with two entrypoints over the canonical `@cucumbe
 
 `gherkin-cli` ships one package behind two symmetric surfaces:
 
-- **The API** (`src/index.ts` barrel) — pure engines a programmatic consumer imports: `parseFeatures` / `parseFeaturesAst`, `validateFeatures`, and `diffFeatures` (plus `GitError` and all their types). Each reads `.feature` source, returns a structured result carrying a pre-computed `summary`, and throws a typed error on failure. It writes to no stream and never calls `process.exit`.
+- **The API** (`src/index.ts` barrel) — pure engines a programmatic consumer imports: `parse` / `parseAst`, `validate`, and `diff` (plus `GitError` and all their types). Each reads `.feature` source, returns a structured result carrying a pre-computed `summary`, and throws a typed error on failure. It writes to no stream and never calls `process.exit`.
 - **The CLI** (`src/cli.ts` bin) — a commander program that is a *client* of the API barrel. It adds the command surface the library omits: flag→option wiring, output rendering, stdout routing, exit codes, next-step help, and the bare-invocation home view.
 
 Both surfaces cover the same three capabilities — **parse** (project a `.feature` into a compact scenario/tag/count digest), **validate** (report Gherkin well-formedness, gated by exit code at the CLI), and **diff** (classify scenario-level changes against a git ref as `added`/`modified`/`removed`/`unchanged`, with an `addOnly` aggregate).
@@ -22,9 +22,9 @@ The CLI emits the **AXI output contract** (`axi/`): TOON by default, minimal def
 
 - [`api/`](api/README.md) — the programmatic library surface: the parse/validate/diff engines and the export/firewall contract.
   - [`api/surface/`](api/surface/README.md) — behavioral: the barrel's export contract and the CLI-layer firewall.
-  - [`api/parse/`](api/parse/README.md) — behavioral: the `parseFeatures` / `parseFeaturesAst` projection engine.
-  - [`api/validate/`](api/validate/README.md) — behavioral: the `validateFeatures` well-formedness engine.
-  - [`api/diff/`](api/diff/README.md) — behavioral: the `diffFeatures` change-classification engine.
+  - [`api/parse/`](api/parse/README.md) — behavioral: the `parse` / `parseAst` projection engine.
+  - [`api/validate/`](api/validate/README.md) — behavioral: the `validate` well-formedness engine.
+  - [`api/diff/`](api/diff/README.md) — behavioral: the `diff` change-classification engine.
 - [`cli/`](cli/README.md) — the command surface that consumes the API barrel.
   - [`cli/parse/`](cli/parse/README.md) — behavioral: the `parse` command.
   - [`cli/validate/`](cli/validate/README.md) — behavioral: the `validate` command.

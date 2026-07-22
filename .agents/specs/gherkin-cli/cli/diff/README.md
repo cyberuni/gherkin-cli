@@ -5,7 +5,7 @@ concept: [diff-command]
 
 # diff — the change-classification command
 
-`gherkin-cli diff <files…> --base <ref>` wires the `diffFeatures` engine to the command surface: `--base` is a required option, `--full` also lists the unchanged scenarios (the default projection shows only what moved), the result plus its `summary` render to stdout, and a zero-change run states so explicitly. When the engine throws `GitError` for an unresolvable ref, the command catches it and renders a structured `EGIT` error on stdout, exit 1.
+`gherkin-cli diff <files…> --base <ref>` wires the `diff` engine to the command surface: `--base` is a required option, `--full` also lists the unchanged scenarios (the default projection shows only what moved), the result plus its `summary` render to stdout, and a zero-change run states so explicitly. When the engine throws `GitError` for an unresolvable ref, the command catches it and renders a structured `EGIT` error on stdout, exit 1.
 
 ## Use Cases
 

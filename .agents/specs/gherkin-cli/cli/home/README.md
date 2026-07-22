@@ -5,7 +5,7 @@ concept: [home-view]
 
 # home — the bare-invocation inventory view
 
-Bare `gherkin-cli` (no args) is not a usage manual — it is a live inventory the agent can act on in one call (AXI #8). It lists the `.feature` files discoverable under the current directory with their scenario counts and feature tags, caps the listing, and ends with next-step help. It reuses the `parseFeatures` engine to compute the per-file counts.
+Bare `gherkin-cli` (no args) is not a usage manual — it is a live inventory the agent can act on in one call (AXI #8). It lists the `.feature` files discoverable under the current directory with their scenario counts and feature tags, caps the listing, and ends with next-step help. It reuses the `parse` engine to compute the per-file counts.
 
 ## Use Cases
 

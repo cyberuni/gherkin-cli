@@ -5,7 +5,7 @@ concept: [validate-command]
 
 # validate — the well-formedness command
 
-`gherkin-cli validate <files…>` renders the `validateFeatures` report to stdout and applies the gate the engine deliberately leaves off: exit `0` when every file is well-formed, exit `1` when any fails. This is the CI/gate verb, distinct from `parse` (which tolerates malformed files as error entries and stays at exit 0).
+`gherkin-cli validate <files…>` renders the `validate` report to stdout and applies the gate the engine deliberately leaves off: exit `0` when every file is well-formed, exit `1` when any fails. This is the CI/gate verb, distinct from `parse` (which tolerates malformed files as error entries and stays at exit 0).
 
 ## Use Cases
 

@@ -1,6 +1,6 @@
 # cli — the command surface
 
-`src/cli.ts` is the `gherkin-cli` bin: a commander program that is a **client** of the API barrel (`import { parseFeatures, ... } from './index.js'`). The engines do the reasoning; the CLI adds everything the library omits — flag→option wiring, output rendering, stdout routing, exit codes, next-step help, and the bare-invocation home view.
+`src/cli.ts` is the `gherkin-cli` bin: a commander program that is a **client** of the API barrel (`import { parse, ... } from './index.js'`). The engines do the reasoning; the CLI adds everything the library omits — flag→option wiring, output rendering, stdout routing, exit codes, next-step help, and the bare-invocation home view.
 
 Every command routes its output through the **AXI output contract** ([`axi/`](../axi/README.md)): TOON by default (`--format json` the escape), a pre-computed `summary` in the payload, definitive empty-state lines, structured errors with stable codes, next-step hints, and consistent `--help`. The stream discipline is the load-bearing rule: the machine result, its errors, its hints, and its empty states **all** go to stdout; stderr carries only the top-level uncaught-exception fallback.
 

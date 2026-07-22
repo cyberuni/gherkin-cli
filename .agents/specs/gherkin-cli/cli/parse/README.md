@@ -5,7 +5,7 @@ concept: [parse-command]
 
 # parse — the projection command
 
-`gherkin-cli parse <files…>` wires the `parseFeatures` / `parseFeaturesAst` engine to the command surface: it maps `--full`, `--tag <name>`, and `--ast` onto the engine options, renders the result (plus its `summary`) to stdout in the requested format, decides the exit code, and ends with next-step help. `--ast` bypasses the projection and emits the raw `GherkinDocument` as JSON. Where the engine returns an `ENOENT` error entry, the command turns it into a fail-loud structured error and exit 1.
+`gherkin-cli parse <files…>` wires the `parse` / `parseAst` engine to the command surface: it maps `--full`, `--tag <name>`, and `--ast` onto the engine options, renders the result (plus its `summary`) to stdout in the requested format, decides the exit code, and ends with next-step help. `--ast` bypasses the projection and emits the raw `GherkinDocument` as JSON. Where the engine returns an `ENOENT` error entry, the command turns it into a fail-loud structured error and exit 1.
 
 ## Use Cases
 
