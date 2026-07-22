@@ -44,8 +44,7 @@ for (const file of result.files) {
 - The result carries a pre-computed `summary {files, scenarios, errors}`.
 - The filesystem seam is a separate 3rd `deps` argument — a `ReadsFile` role interface (default
   `nodeReadsFile`), not an option — so you can drive `parse` and `parseAst` from in-memory text
-  with no disk access. See
-  [Testing without disk or git](/gherkin-cli/api/overview/#testing-without-disk-or-git).
+  with no disk access: `parse(paths, {}, { readFile: (path) => fixtures[path] })`.
 
 ## parseAst
 

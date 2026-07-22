@@ -39,8 +39,8 @@ if (result.summary.errors > 0) {
 - The engine never exits or gates; the CLI maps any error to exit `1`.
 - The result carries a pre-computed `summary {files, errors}`.
 - The filesystem seam is a separate 3rd `deps` argument — a `ReadsFile` role interface (default
-  `nodeReadsFile`), not an option — so you can validate in-memory text with no disk access. See
-  [Testing without disk or git](/gherkin-cli/api/overview/#testing-without-disk-or-git).
+  `nodeReadsFile`), not an option — so you can validate in-memory text with no disk access:
+  `validate(paths, {}, { readFile: (path) => fixtures[path] })`.
 
 ## See also
 
