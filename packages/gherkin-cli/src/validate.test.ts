@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { validateFeatures } from './validate.js'
+import { validate } from './validate.js'
 
 const dir = mkdtempSync(path.join(tmpdir(), 'gherkin-validate-'))
 
@@ -15,16 +15,16 @@ function fixture(name: string, body: string): string {
 const valid = fixture('ok.feature', 'Feature: f\n  Scenario: s\n    Given x\n    Then y\n')
 const invalid = fixture('bad.feature', 'Feature: f\n  Scenario: s\n    Given x\n  @tag\nGarbage:::\n')
 
-describe('validateFeatures', () => {
+describe('validate', () => {
 	it('reports a valid file as ok (exit 0 at the CLI)', () => {
-		const result = validateFeatures([valid])
+		const result = validate([valid])
 		expect(result.summary).toEqual({ files: 1, errors: 0 })
 		expect(result.files[0]!.ok).toBe(true)
 		expect(result.files[0]!.errors).toEqual([])
 	})
 
 	it('reports an invalid file with the correct error line (CLI exits 1)', () => {
-		const result = validateFeatures([invalid])
+		const result = validate([invalid])
 		expect(result.summary.errors).toBeGreaterThan(0)
 		const file = result.files[0]!
 		expect(file.ok).toBe(false)
@@ -36,7 +36,7 @@ describe('validateFeatures', () => {
 	// valid file stays ok and the invalid one is not, and summary.errors counts only the
 	// invalid one — the valid file does not contaminate its neighbour's verdict.
 	it('marks each file independently in a mixed batch and counts only the failures', () => {
-		const result = validateFeatures([valid, invalid])
+		const result = validate([valid, invalid])
 		expect(result.files[0]!.ok).toBe(true)
 		expect(result.files[0]!.errors).toEqual([])
 		expect(result.files[1]!.ok).toBe(false)
@@ -50,7 +50,7 @@ describe('validateFeatures', () => {
 	})
 
 	it('reports a missing file as not ok', () => {
-		const result = validateFeatures([path.join(dir, 'missing.feature')])
+		const result = validate([path.join(dir, 'missing.feature')])
 		expect(result.files[0]!.ok).toBe(false)
 		expect(result.files[0]!.errors[0]!.code).toBe('ENOENT')
 	})
@@ -62,7 +62,7 @@ describe('injectable reader', () => {
 			expect(p).toBe('in-memory.feature')
 			return 'Feature: f\n  Scenario: s\n    Given x\n    Then y\n'
 		}
-		const result = validateFeatures(['in-memory.feature'], { reader })
+		const result = validate(['in-memory.feature'], {}, { readFile: reader })
 		expect(result.files[0]!.ok).toBe(true)
 		expect(result.summary.errors).toBe(0)
 	})
@@ -71,7 +71,7 @@ describe('injectable reader', () => {
 		const reader = () => {
 			throw new Error('nope')
 		}
-		const result = validateFeatures(['ghost.feature'], { reader })
+		const result = validate(['ghost.feature'], {}, { readFile: reader })
 		expect(result.files[0]!.ok).toBe(false)
 		expect(result.files[0]!.errors[0]!.code).toBe('ENOENT')
 	})

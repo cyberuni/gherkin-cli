@@ -6,29 +6,21 @@ import * as api from './index.js'
 // (output.ts) must stay CLI-only and structurally unreachable from the library.
 
 it('exposes the pure engine functions', () => {
-	expect(typeof api.parseFeatures).toBe('function')
-	expect(typeof api.parseFeaturesAst).toBe('function')
-	expect(typeof api.validateFeatures).toBe('function')
-	expect(typeof api.diffFeatures).toBe('function')
+	expect(typeof api.parse).toBe('function')
+	expect(typeof api.parseAst).toBe('function')
+	expect(typeof api.validate).toBe('function')
+	expect(typeof api.diff).toBe('function')
 	expect(typeof api.GitError).toBe('function')
 })
 
 it('exposes the injectable readers and their node defaults', () => {
-	expect(typeof api.nodeFileReader).toBe('function')
-	expect(typeof api.gitReader).toBe('function')
+	expect(typeof api.nodeReadsFile.readFile).toBe('function')
+	expect(typeof api.gitReadsDiff.readDiff).toBe('function')
 })
 
 it('exports exactly the pure engine surface — no more', () => {
 	expect(Object.keys(api).sort()).toEqual(
-		[
-			'GitError',
-			'diffFeatures',
-			'gitReader',
-			'nodeFileReader',
-			'parseFeatures',
-			'parseFeaturesAst',
-			'validateFeatures',
-		].sort(),
+		['GitError', 'diff', 'gitReadsDiff', 'nodeReadsFile', 'parse', 'parseAst', 'validate'].sort(),
 	)
 })
 
@@ -51,7 +43,7 @@ it('importing the barrel runs no CLI side effect — no stdout write, no process
 	try {
 		vi.resetModules()
 		const reimported = await import('./index.js')
-		expect(typeof reimported.parseFeatures).toBe('function')
+		expect(typeof reimported.parse).toBe('function')
 		expect(outSpy).not.toHaveBeenCalled()
 		expect(exitSpy).not.toHaveBeenCalled()
 	} finally {
@@ -62,6 +54,6 @@ it('importing the barrel runs no CLI side effect — no stdout write, no process
 
 it('engines return values and throw — they never exit the process', () => {
 	// A pure engine call resolves to a structured result with no stream write.
-	const result = api.validateFeatures([])
+	const result = api.validate([])
 	expect(result.summary).toEqual({ files: 0, errors: 0 })
 })

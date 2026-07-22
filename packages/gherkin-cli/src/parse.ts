@@ -1,6 +1,6 @@
 import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherkin'
 import { IdGenerator } from '@cucumber/messages'
-import { type FileReader, nodeFileReader } from './reader.js'
+import { nodeReadsFile, type ReadsFile } from './reader.js'
 
 export interface ParseStep {
 	keyword: string
@@ -39,8 +39,6 @@ export interface ParseResult {
 export interface ParseOptions {
 	full?: boolean
 	tag?: string
-	/** Injectable filesystem seam (default {@link nodeFileReader}) — pass a fake to test without disk. */
-	reader?: FileReader
 }
 
 /** Build a fresh parser with a deterministic (incrementing) id generator. */
@@ -106,11 +104,10 @@ function projectDoc(
 	return { featureTags, scenarios, sectionComments }
 }
 
-function parseOne(path: string, opts: ParseOptions): ParseFile {
-	const read = opts.reader ?? nodeFileReader
+function parseOne(path: string, opts: ParseOptions, deps: ReadsFile): ParseFile {
 	let text: string
 	try {
-		text = read(path)
+		text = deps.readFile(path)
 	} catch (err) {
 		return {
 			file: path,
@@ -148,8 +145,8 @@ function parseOne(path: string, opts: ParseOptions): ParseFile {
  * malformed file becomes an `error` entry rather than throwing — the CLI layer
  * decides the exit code (ENOENT is a hard fail; EPARSE is best-effort, exit 0).
  */
-export function parseFeatures(paths: string[], opts: ParseOptions = {}): ParseResult {
-	const files = paths.map((path) => parseOne(path, opts))
+export function parse(paths: string[], opts: ParseOptions = {}, deps: ReadsFile = nodeReadsFile): ParseResult {
+	const files = paths.map((path) => parseOne(path, opts, deps))
 	return {
 		summary: {
 			files: files.length,
@@ -167,12 +164,11 @@ export interface ParseAstFile {
 }
 
 /** Dump the raw GherkinDocument for each file (backs `parse --ast`). */
-export function parseFeaturesAst(paths: string[], opts: ParseOptions = {}): ParseAstFile[] {
-	const read = opts.reader ?? nodeFileReader
+export function parseAst(paths: string[], _opts: ParseOptions = {}, deps: ReadsFile = nodeReadsFile): ParseAstFile[] {
 	return paths.map((path) => {
 		let text: string
 		try {
-			text = read(path)
+			text = deps.readFile(path)
 		} catch (err) {
 			return { file: path, error: { code: 'ENOENT', line: 0, message: (err as Error).message } }
 		}

@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { parseFeatures, parseFeaturesAst } from './parse.js'
+import { parse, parseAst } from './parse.js'
 
 const dir = mkdtempSync(path.join(tmpdir(), 'gherkin-parse-'))
 
@@ -50,9 +50,9 @@ const outline = fixture(
 `,
 )
 
-describe('parseFeatures', () => {
+describe('parse', () => {
 	it('projects the default shape (no step detail)', () => {
-		const result = parseFeatures([valid])
+		const result = parse([valid])
 		expect(result.summary).toEqual({ files: 1, scenarios: 2, errors: 0 })
 		const file = result.files[0]!
 		expect(file.featureTags).toEqual(['@auth'])
@@ -65,7 +65,7 @@ describe('parseFeatures', () => {
 	})
 
 	it('--full adds stepCount, exampleRows, and steps', () => {
-		const file = parseFeatures([valid], { full: true }).files[0]!
+		const file = parse([valid], { full: true }).files[0]!
 		const first = file.scenarios[0]!
 		expect(first.stepCount).toBe(3)
 		expect(first.exampleRows).toBe(0)
@@ -77,7 +77,7 @@ describe('parseFeatures', () => {
 	})
 
 	it('--tag keeps only scenarios carrying the tag', () => {
-		const file = parseFeatures([valid], { tag: '@smoke' }).files[0]!
+		const file = parse([valid], { tag: '@smoke' }).files[0]!
 		expect(file.scenarioCount).toBe(1)
 		expect(file.scenarios.map((s) => s.name)).toEqual(['Successful login'])
 	})
@@ -85,7 +85,7 @@ describe('parseFeatures', () => {
 	// api/parse "tag matching ignores a leading @ on the filter": `smoke` (no @) must
 	// match the @smoke scenario exactly as `@smoke` does — normalizeTag strips the @.
 	it('--tag matching ignores a leading @ on the filter', () => {
-		const file = parseFeatures([valid], { tag: 'smoke' }).files[0]!
+		const file = parse([valid], { tag: 'smoke' }).files[0]!
 		expect(file.scenarioCount).toBe(1)
 		expect(file.scenarios.map((s) => s.name)).toEqual(['Successful login'])
 	})
@@ -95,7 +95,7 @@ describe('parseFeatures', () => {
 	// suite only ever has flat scenarios, so exampleRows is asserted as 0 everywhere
 	// else — this pins the actual row-counting path against a 3-row Examples table.
 	it("--full counts a Scenario Outline's Examples rows alongside stepCount and steps", () => {
-		const file = parseFeatures([outline], { full: true }).files[0]!
+		const file = parse([outline], { full: true }).files[0]!
 		const first = file.scenarios[0]!
 		expect(first.keyword).toBe('Scenario Outline')
 		expect(first.exampleRows).toBe(3)
@@ -111,7 +111,7 @@ describe('parseFeatures', () => {
 	// and scenarios is the sum over all files. Every other call passes one file, so
 	// multi-file aggregation is otherwise unexercised.
 	it('aggregates files and scenarios across a multi-file batch', () => {
-		const result = parseFeatures([valid, outline, valid])
+		const result = parse([valid, outline, valid])
 		expect(result.summary.files).toBe(3)
 		// valid has 2 scenarios, outline has 1 — 2 + 1 + 2 = 5 across the three files.
 		expect(result.summary.scenarios).toBe(5)
@@ -119,8 +119,8 @@ describe('parseFeatures', () => {
 	})
 
 	it('records a malformed file as an EPARSE error without throwing (best-effort, exit 0)', () => {
-		expect(() => parseFeatures([malformed])).not.toThrow()
-		const result = parseFeatures([malformed])
+		expect(() => parse([malformed])).not.toThrow()
+		const result = parse([malformed])
 		expect(result.summary.errors).toBe(1)
 		const file = result.files[0]!
 		expect(file.error?.code).toBe('EPARSE')
@@ -129,21 +129,21 @@ describe('parseFeatures', () => {
 	})
 
 	it('records a missing file as an ENOENT error', () => {
-		const result = parseFeatures([path.join(dir, 'nope.feature')])
+		const result = parse([path.join(dir, 'nope.feature')])
 		expect(result.summary.errors).toBe(1)
 		expect(result.files[0]!.error?.code).toBe('ENOENT')
 	})
 })
 
-describe('parseFeaturesAst', () => {
+describe('parseAst', () => {
 	it('dumps the raw GherkinDocument', () => {
-		const [entry] = parseFeaturesAst([valid])
+		const [entry] = parseAst([valid])
 		expect(entry!.error).toBeUndefined()
 		expect((entry!.ast as any).feature.name).toBe('Login')
 	})
 
 	it('surfaces ENOENT for a missing file', () => {
-		const [entry] = parseFeaturesAst([path.join(dir, 'nope.feature')])
+		const [entry] = parseAst([path.join(dir, 'nope.feature')])
 		expect(entry!.error?.code).toBe('ENOENT')
 	})
 })
@@ -156,7 +156,7 @@ describe('injectable reader', () => {
 			expect(p).toBe('in-memory.feature')
 			return 'Feature: F\n  Scenario: S\n    Given a\n    Then b\n'
 		}
-		const result = parseFeatures(['in-memory.feature'], { reader })
+		const result = parse(['in-memory.feature'], {}, { readFile: reader })
 		expect(touched).toBe(true)
 		expect(result.files[0]!.scenarios.map((s) => s.name)).toEqual(['S'])
 		expect(result.files[0]!.error).toBeUndefined()
@@ -166,13 +166,13 @@ describe('injectable reader', () => {
 		const reader = () => {
 			throw new Error('nope')
 		}
-		const result = parseFeatures(['ghost.feature'], { reader })
+		const result = parse(['ghost.feature'], {}, { readFile: reader })
 		expect(result.files[0]!.error?.code).toBe('ENOENT')
 	})
 
-	it('parseFeaturesAst also reads through an injected reader', () => {
+	it('parseAst also reads through an injected reader', () => {
 		const reader = () => 'Feature: F\n  Scenario: S\n    Given a\n    Then b\n'
-		const ast = parseFeaturesAst(['in-memory.feature'], { reader })
+		const ast = parseAst(['in-memory.feature'], {}, { readFile: reader })
 		expect(ast[0]!.ast).toBeDefined()
 		expect(ast[0]!.error).toBeUndefined()
 	})
