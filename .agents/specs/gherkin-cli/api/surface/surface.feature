@@ -22,3 +22,10 @@ Feature: surface — the export contract and CLI-layer firewall
     Then nothing is written to stdout
     And process.exit is not called
     And no argv parsing occurs
+
+  # ── injectable readers ──────────────────────────────────────────
+  Scenario: the barrel exposes the injectable readers and their node defaults
+    Given the gherkin-cli package barrel
+    When its exports are inspected
+    Then it exports the FileReader and DiffReader seam types
+    And it exports nodeFileReader and gitReader as the node defaults

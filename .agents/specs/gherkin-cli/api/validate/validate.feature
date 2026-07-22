@@ -28,3 +28,9 @@ Feature: validate — the well-formedness engine
     When validateFeatures runs on it
     Then the file is reported not ok
     And an error carries the code ENOENT
+
+  Scenario: the file text is read through an injected reader
+    Given a FileReader that returns feature text without touching the filesystem
+    When validateFeatures runs with that reader injected
+    Then the verdict uses the text the reader returned
+    And no file is read from disk

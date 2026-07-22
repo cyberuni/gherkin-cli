@@ -24,3 +24,4 @@ concept: [parsing]
 - The result carries a pre-computed `summary {files, scenarios, errors}`.
 - A malformed file yields an `error {code: 'EPARSE', line, message}` on that file entry; the engine does not throw.
 - A missing file yields an `error {code: 'ENOENT', ...}` on that file entry; the engine does not throw or exit — the CLI decides what to do.
+- `{reader}` injects the filesystem seam (a `FileReader`, default `nodeFileReader`) — pass a fake to drive the engine from in-memory text with no disk access. `parseFeaturesAst` accepts the same option.

@@ -19,3 +19,4 @@ concept: [validation]
 - The result carries a pre-computed `summary {files, errors}`.
 - A clean run reports every file `ok` and `summary.errors === 0` — a return value, not an exit code.
 - The engine never exits or throws; the CLI maps any error to exit 1.
+- `{reader}` injects the filesystem seam (a `FileReader`, default `nodeFileReader`) — pass a fake to validate in-memory text with no disk access.

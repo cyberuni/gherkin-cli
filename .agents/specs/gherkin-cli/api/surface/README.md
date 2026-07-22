@@ -16,6 +16,7 @@ The `.` barrel is the formal boundary between the library and the CLI. This node
 ## Contract
 
 - The barrel exports the values `parseFeatures`, `parseFeaturesAst`, `validateFeatures`, `diffFeatures`, and `GitError`, plus every type each engine returns or accepts.
+- The barrel exports the injectable filesystem/git seams and their node defaults: the `FileReader` and `DiffReader` types, and `nodeFileReader` and `gitReader` — so a consumer can drive the engines from fixtures without disk or git.
 - The barrel exports none of the CLI-only render/stream helpers (`render`, `encodeToon`, `writeResult`, `fail`, `writeHelp`) — they stay in `src/output.ts`, reachable only from `src/cli.ts`.
 - Importing the barrel performs no stdout write, no `process.exit`, and no argv parsing.
 - The firewall is structural: the CLI is unreachable from the library, so no library consumer can trigger a stream write or an exit.

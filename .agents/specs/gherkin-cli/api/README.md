@@ -14,7 +14,7 @@ The render/format/stream layer (`src/output.ts`) and the command program (`src/c
 
 - Files are returned in input order; scenarios in document order.
 - Ids come from a deterministic incrementing generator, so repeat runs over the same input return byte-identical structures.
-- No engine mutates its inputs or reaches for ambient state beyond the filesystem (and git, for `diff`, through an injectable reader).
+- No engine mutates its inputs or reaches for ambient state beyond the filesystem and git — both behind injectable seams: a `FileReader` (default `nodeFileReader`) on `parseFeatures` / `validateFeatures`, and a `DiffReader` (default `gitReader`) on `diffFeatures`, so every engine can be driven from fixtures with no disk or git.
 
 ## Nodes
 

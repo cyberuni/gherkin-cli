@@ -63,3 +63,10 @@ Feature: parse — the projection engine
     Then that file entry carries an error with code ENOENT
     And no exception is thrown
     And the engine does not exit the process
+
+  # ── injectable reader ───────────────────────────────────────────
+  Scenario: the file text is read through an injected reader
+    Given a FileReader that returns feature text without touching the filesystem
+    When parseFeatures runs with that reader injected
+    Then the projection uses the text the reader returned
+    And no file is read from disk
