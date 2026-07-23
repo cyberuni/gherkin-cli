@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { type DiffReader, diffFeatures } from './diff.js'
+import { diff, GitError, type ReadsGitDiff } from './diff.js'
 
 const BASE = `Feature: f
   Scenario: keep
@@ -23,16 +23,16 @@ const HEAD = `Feature: f
     Given w
 `
 
-function changesByName(file: string, reader: DiffReader) {
+function changesByName(file: string, reader: ReadsGitDiff) {
 	// `full` so the classification itself is under test, not the default changed-only projection.
-	const result = diffFeatures([file], { base: 'HEAD', full: true, reader })
+	const result = diff([file], { base: 'HEAD', full: true }, reader)
 	const map = new Map(result.files[0]!.scenarios.map((s) => [s.name, s.change]))
 	return { result, map }
 }
 
-describe('diffFeatures (injected reader)', () => {
+describe('diff (injected reader)', () => {
 	it('classifies added / modified / removed / unchanged', () => {
-		const reader: DiffReader = () => ({ head: HEAD, base: BASE })
+		const reader: ReadsGitDiff = { readDiff: () => ({ head: HEAD, base: BASE }) }
 		const { result, map } = changesByName('f.feature', reader)
 		expect(map.get('keep')).toBe('unchanged')
 		expect(map.get('change me')).toBe('modified')
@@ -42,15 +42,27 @@ describe('diffFeatures (injected reader)', () => {
 	})
 
 	it('marks a brand-new file (no base) as addOnly with everything added', () => {
-		const reader: DiffReader = () => ({ head: HEAD, base: undefined })
+		const reader: ReadsGitDiff = { readDiff: () => ({ head: HEAD, base: undefined }) }
 		const { result, map } = changesByName('new.feature', reader)
 		expect([...map.values()].every((c) => c === 'added')).toBe(true)
 		expect(result.summary.addOnly).toBe(true)
 		expect(result.files[0]!.addOnly).toBe(true)
 	})
+
+	// api/diff "renaming a scenario reads as add plus remove": identity is the scenario
+	// name, so a same-steps rename is a remove of the old name plus an add of the new.
+	it('reads a rename as add plus remove (name is the identity)', () => {
+		const base = 'Feature: f\n  Scenario: original\n    Given x\n'
+		const head = 'Feature: f\n  Scenario: renamed\n    Given x\n'
+		const reader: ReadsGitDiff = { readDiff: () => ({ head, base }) }
+		const { result, map } = changesByName('f.feature', reader)
+		expect(map.get('original')).toBe('removed')
+		expect(map.get('renamed')).toBe('added')
+		expect(result.summary.addOnly).toBe(false)
+	})
 })
 
-describe('diffFeatures (real git integration)', () => {
+describe('diff (real git integration)', () => {
 	it('diffs a working copy against a committed base', () => {
 		const dir = mkdtempSync(path.join(tmpdir(), 'gherkin-diff-git-'))
 		const file = path.join(dir, 'f.feature')
@@ -63,19 +75,55 @@ describe('diffFeatures (real git integration)', () => {
 		git('commit', '-qm', 'base')
 		writeFileSync(file, HEAD)
 
-		const result = diffFeatures([file], { base: 'HEAD', full: true })
+		const result = diff([file], { base: 'HEAD', full: true })
 		const map = new Map(result.files[0]!.scenarios.map((s) => [s.name, s.change]))
 		expect(map.get('keep')).toBe('unchanged')
 		expect(map.get('change me')).toBe('modified')
 		expect(map.get('brand new')).toBe('added')
 		expect(map.get('drop me')).toBe('removed')
 	})
+
+	// api/diff "an unresolvable base ref throws GitError from the engine": the real git
+	// path (no injected reader) must THROW rather than print or exit — that is the whole
+	// reason the CLI wraps diff in a try/catch. Only the CLI catch is tested
+	// elsewhere; this pins the engine's own throw.
+	it('throws GitError from the real git path on an unresolvable base ref', () => {
+		const dir = mkdtempSync(path.join(tmpdir(), 'gherkin-diff-git-'))
+		const file = path.join(dir, 'f.feature')
+		const git = (...args: string[]) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' })
+		git('init', '-q')
+		git('config', 'user.email', 'test@example.com')
+		git('config', 'user.name', 'Test')
+		writeFileSync(file, BASE)
+		git('add', 'f.feature')
+		git('commit', '-qm', 'base')
+
+		expect(() => diff([file], { base: 'does-not-exist-ref' })).toThrow(GitError)
+	})
+})
+
+// api/diff purely-additive fixture: base has A and B, head adds C and touches neither.
+// C is `added`, A and B stay `unchanged`, and the file/summary read `addOnly: true`.
+// Tightens the "purely additive" and "new scenario, existing unchanged" scenarios.
+describe('diff (purely additive)', () => {
+	it('adds C while leaving A and B unchanged, addOnly true', () => {
+		const base = 'Feature: f\n  Scenario: A\n    Given a\n  Scenario: B\n    Given b\n'
+		const head = 'Feature: f\n  Scenario: A\n    Given a\n  Scenario: B\n    Given b\n  Scenario: C\n    Given c\n'
+		const reader: ReadsGitDiff = { readDiff: () => ({ head, base }) }
+		const result = diff(['f.feature'], { base: 'HEAD', full: true }, reader)
+		const map = new Map(result.files[0]!.scenarios.map((s) => [s.name, s.change]))
+		expect(map.get('C')).toBe('added')
+		expect(map.get('A')).toBe('unchanged')
+		expect(map.get('B')).toBe('unchanged')
+		expect(result.files[0]!.addOnly).toBe(true)
+		expect(result.summary.addOnly).toBe(true)
+	})
 })
 
 // A step's DocString / DataTable is part of the step. Hashing step text alone let a frozen `@rubric`
 // — which lives wholly inside a DocString — be gutted while still reporting `unchanged`, so the
 // narrowing self-cleared and Clearance never fired.
-describe('diffFeatures (step arguments are part of the signature)', () => {
+describe('diff (step arguments are part of the signature)', () => {
 	const withDocString = (dimension: string, threshold: string) => `Feature: f
   @rubric
   Scenario: graded
@@ -92,7 +140,7 @@ describe('diffFeatures (step arguments are part of the signature)', () => {
       | ${dimension} | ${threshold} |
 `
 	const changeOf = (base: string, head: string) =>
-		diffFeatures(['f.feature'], { base: 'HEAD', full: true, reader: () => ({ head, base }) }).files[0]!.scenarios[0]!
+		diff(['f.feature'], { base: 'HEAD', full: true }, { readDiff: () => ({ head, base }) }).files[0]!.scenarios[0]!
 			.change
 
 	it('reports a gutted DocString rubric as modified, not unchanged', () => {
@@ -156,11 +204,14 @@ describe('diffFeatures (step arguments are part of the signature)', () => {
 		const inserted = '  Scenario: inserted above\n    Given a wholly new precondition\n'
 		const map = (text: string) =>
 			new Map(
-				diffFeatures(['f.feature'], {
-					base: 'HEAD',
-					full: true,
-					reader: () => ({ head: text, base: `Feature: f\n${graded}` }),
-				}).files[0]!.scenarios.map((s) => [s.name, s.change]),
+				diff(
+					['f.feature'],
+					{
+						base: 'HEAD',
+						full: true,
+					},
+					{ readDiff: () => ({ head: text, base: `Feature: f\n${graded}` }) },
+				).files[0]!.scenarios.map((s) => [s.name, s.change]),
 			)
 		const moved = map(`Feature: f\n${inserted}\n${graded}`)
 		expect(moved.get('graded')).toBe('unchanged')
@@ -184,10 +235,10 @@ describe('diffFeatures (step arguments are part of the signature)', () => {
 // `--full` used to be pure documentation: the help promised "include unchanged scenarios" while
 // diff always returned every scenario. The flag now selects the projection, and the invariant that
 // makes that safe is that only the ROWS change — every aggregate is computed before the filter.
-describe('diffFeatures (the --full projection)', () => {
-	const reader: DiffReader = () => ({ head: HEAD, base: BASE })
+describe('diff (the --full projection)', () => {
+	const reader: ReadsGitDiff = { readDiff: () => ({ head: HEAD, base: BASE }) }
 	const kinds = (full?: boolean) =>
-		diffFeatures(['f.feature'], { base: 'HEAD', full, reader }).files[0]!.scenarios.map((s) => s.change)
+		diff(['f.feature'], { base: 'HEAD', full }, reader).files[0]!.scenarios.map((s) => s.change)
 
 	it('omits unchanged scenarios by default', () => {
 		expect(kinds()).toEqual(['modified', 'added', 'removed'])
@@ -201,7 +252,7 @@ describe('diffFeatures (the --full projection)', () => {
 	// `summary.unchanged` still learns how many were unchanged without paying for the rows.
 	it('counts unchanged in the summary either way', () => {
 		for (const full of [undefined, true]) {
-			expect(diffFeatures(['f.feature'], { base: 'HEAD', full, reader }).summary).toMatchObject({
+			expect(diff(['f.feature'], { base: 'HEAD', full }, reader).summary).toMatchObject({
 				added: 1,
 				modified: 1,
 				removed: 1,
@@ -213,13 +264,13 @@ describe('diffFeatures (the --full projection)', () => {
 	// `addOnly` is derived from the classification, not from the emitted rows — filtering unchanged
 	// rows must not perturb it in either direction.
 	it('reports the same addOnly flags either way', () => {
-		const additive: DiffReader = () => ({ head: HEAD, base: undefined })
+		const additive: ReadsGitDiff = { readDiff: () => ({ head: HEAD, base: undefined }) }
 		for (const [read, expected] of [
 			[reader, false],
 			[additive, true],
 		] as const) {
 			for (const full of [undefined, true]) {
-				const result = diffFeatures(['f.feature'], { base: 'HEAD', full, reader: read })
+				const result = diff(['f.feature'], { base: 'HEAD', full }, read)
 				expect(result.summary.addOnly).toBe(expected)
 				expect(result.files[0]!.addOnly).toBe(expected)
 			}
@@ -229,8 +280,8 @@ describe('diffFeatures (the --full projection)', () => {
 	// An all-unchanged file must still be listed — an empty `scenarios` list is the answer ("nothing
 	// moved here"), not a reason to drop the file from the result.
 	it('keeps a file whose scenarios are all unchanged, with an empty scenario list', () => {
-		const same: DiffReader = () => ({ head: BASE, base: BASE })
-		const result = diffFeatures(['f.feature'], { base: 'HEAD', reader: same })
+		const same: ReadsGitDiff = { readDiff: () => ({ head: BASE, base: BASE }) }
+		const result = diff(['f.feature'], { base: 'HEAD' }, same)
 		expect(result.files).toHaveLength(1)
 		expect(result.files[0]!.scenarios).toEqual([])
 		expect(result.summary).toMatchObject({ files: 1, unchanged: 3, addOnly: true })
