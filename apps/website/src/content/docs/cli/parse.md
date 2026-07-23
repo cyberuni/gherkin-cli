@@ -34,4 +34,5 @@ gherkin-cli parse features/login.feature --tag @smoke
 
 - [validate](/gherkin-cli/cli/validate/) — check well-formedness with a gating exit code.
 - [diff](/gherkin-cli/cli/diff/) — classify scenario changes against a git ref.
+- [parse](/gherkin-cli/api/parse/) — the same projection as an imported function.
 - [AXI output contract](/gherkin-cli/concepts/axi/) — the shared conventions behind this output.

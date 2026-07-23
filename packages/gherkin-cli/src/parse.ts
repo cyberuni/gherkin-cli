@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs'
 import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherkin'
 import { IdGenerator } from '@cucumber/messages'
+import { nodeReadsFile, type ReadsFile } from './reader.js'
 
 export interface ParseStep {
 	keyword: string
@@ -104,10 +104,10 @@ function projectDoc(
 	return { featureTags, scenarios, sectionComments }
 }
 
-function parseOne(path: string, opts: ParseOptions): ParseFile {
+function parseOne(path: string, opts: ParseOptions, deps: ReadsFile): ParseFile {
 	let text: string
 	try {
-		text = readFileSync(path, 'utf8')
+		text = deps.readFile(path)
 	} catch (err) {
 		return {
 			file: path,
@@ -145,8 +145,8 @@ function parseOne(path: string, opts: ParseOptions): ParseFile {
  * malformed file becomes an `error` entry rather than throwing — the CLI layer
  * decides the exit code (ENOENT is a hard fail; EPARSE is best-effort, exit 0).
  */
-export function parseFeatures(paths: string[], opts: ParseOptions = {}): ParseResult {
-	const files = paths.map((path) => parseOne(path, opts))
+export function parse(paths: string[], opts: ParseOptions = {}, deps: ReadsFile = nodeReadsFile): ParseResult {
+	const files = paths.map((path) => parseOne(path, opts, deps))
 	return {
 		summary: {
 			files: files.length,
@@ -164,11 +164,11 @@ export interface ParseAstFile {
 }
 
 /** Dump the raw GherkinDocument for each file (backs `parse --ast`). */
-export function parseFeaturesAst(paths: string[]): ParseAstFile[] {
+export function parseAst(paths: string[], _opts: ParseOptions = {}, deps: ReadsFile = nodeReadsFile): ParseAstFile[] {
 	return paths.map((path) => {
 		let text: string
 		try {
-			text = readFileSync(path, 'utf8')
+			text = deps.readFile(path)
 		} catch (err) {
 			return { file: path, error: { code: 'ENOENT', line: 0, message: (err as Error).message } }
 		}

@@ -4,10 +4,12 @@ import { homedir } from 'node:os'
 import { relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Command, CommanderError } from 'commander'
-import { diffFeatures, GitError } from './diff.js'
+// Consume the engines through the public API barrel (`./index.js`), the same
+// surface a programmatic consumer imports — the CLI is a client of the library.
+// `./output.js` is imported directly: it is the CLI-only render/stream layer,
+// deliberately kept out of the public API (see index.ts).
+import { diff, GitError, parse, parseAst, validate } from './index.js'
 import { type Format, fail, render, truncate, writeHelp, writeResult, writeStderr } from './output.js'
-import { parseFeatures, parseFeaturesAst } from './parse.js'
-import { validateFeatures } from './validate.js'
 
 /** Valid flags per subcommand, inlined into unknown-flag errors (AXI #6). */
 const FLAGS: Record<string, string[]> = {
@@ -81,13 +83,13 @@ function buildProgram(): Command {
 			const full = Boolean(opts.full)
 
 			if (opts.ast) {
-				const ast = parseFeaturesAst(files)
+				const ast = parseAst(files)
 				const missing = ast.find((f) => f.error?.code === 'ENOENT')
 				if (missing) return notFound(missing.file, format)
 				return writeResult(render(ast, 'json'))
 			}
 
-			const result = parseFeatures(files, { full, tag: opts.tag })
+			const result = parse(files, { full, tag: opts.tag })
 			const missing = result.files.find((f) => f.error?.code === 'ENOENT')
 			if (missing) return notFound(missing.file, format)
 
@@ -108,7 +110,7 @@ function buildProgram(): Command {
 		.addHelpText('after', '\nExample:\n  $ gherkin-cli validate features/login.feature')
 		.action((files: string[], _opts, command: Command) => {
 			const format = resolveFormat(command.optsWithGlobals().format)
-			const result = validateFeatures(files)
+			const result = validate(files)
 			emit(result, format, false)
 
 			if (result.summary.errors === 0) {
@@ -132,9 +134,9 @@ function buildProgram(): Command {
 		.action((files: string[], opts, command: Command) => {
 			const format = resolveFormat(command.optsWithGlobals().format)
 			const full = Boolean(opts.full)
-			let result: ReturnType<typeof diffFeatures>
+			let result: ReturnType<typeof diff>
 			try {
-				result = diffFeatures(files, { base: opts.base, full })
+				result = diff(files, { base: opts.base, full })
 			} catch (err) {
 				if (err instanceof GitError) return fail('EGIT', err.message, format)
 				throw err
@@ -189,7 +191,7 @@ export function home(cwd: string = process.cwd()): void {
 		.map((file) => relative('.', file))
 		.sort()
 	const shown = found.slice(0, HOME_LIMIT)
-	const result = parseFeatures(
+	const result = parse(
 		shown.map((file) => `${cwd}/${file}`),
 		{},
 	)

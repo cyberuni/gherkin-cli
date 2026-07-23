@@ -70,13 +70,13 @@ function fakeStream() {
 }
 
 describe('stream discipline', () => {
-	it('writes the machine result to stdout and affordances to stderr', () => {
+	it('writes the machine result to stdout; stderr is only the uncaught-exception fallback', () => {
 		const out = fakeStream()
 		const err = fakeStream()
 		writeResult('summary:\n  files: 1', out)
-		writeStderr('→ gherkin-cli parse a.feature', err)
+		writeStderr('uncaught: something went wrong', err)
 		expect(out.chunks.join('')).toBe('summary:\n  files: 1\n')
-		expect(err.chunks.join('')).toBe('→ gherkin-cli parse a.feature\n')
+		expect(err.chunks.join('')).toBe('uncaught: something went wrong\n')
 	})
 })
 

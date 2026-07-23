@@ -12,6 +12,10 @@ hero:
       link: /gherkin-cli/cli/parse/
       icon: open-book
       variant: minimal
+    - text: API Reference
+      link: /gherkin-cli/api/overview/
+      icon: seti:typescript
+      variant: minimal
 ---
 
 import { CardGrid, LinkCard } from '@astrojs/starlight/components'
@@ -38,6 +42,9 @@ npx gherkin-cli parse features/**/*.feature
 
 Run `gherkin-cli` with no arguments to see the `.feature` inventory of the current directory —
 file names, scenario counts, and tags — in one call.
+
+Prefer to call it in-process? The same three capabilities are pure functions you `import` — see the
+[Programmatic API](/gherkin-cli/api/overview/).
 
 See [Introduction](/gherkin-cli/getting-started/introduction/) for what `gherkin-cli` is and why it
 exists, or jump straight to the [CLI Reference](/gherkin-cli/cli/parse/).

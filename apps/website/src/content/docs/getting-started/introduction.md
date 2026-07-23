@@ -9,7 +9,12 @@ token-efficient, [AXI](https://github.com/kunchenguid/axi)-conformant output. It
 tokenization — and projects the result through a compact, deterministic output layer built for AI
 agents that read and reason over Gherkin suites.
 
-It ships three commands:
+It ships two surfaces over the same three capabilities: a **CLI** you run and a **programmatic
+API** you `import`. The [CLI Reference](/gherkin-cli/cli/parse/) documents the commands; the
+[API Reference](/gherkin-cli/api/overview/) documents the pure engines (`parse`,
+`validate`, `diff`) you call directly, with no stream write and no `process.exit`.
+
+The three capabilities:
 
 - **`parse`** — project a `.feature` into a compact digest: scenario names, tags, and counts.
 - **`validate`** — check `.feature` well-formedness, with a gating exit code for CI.
@@ -34,6 +39,7 @@ npx gherkin-cli parse features/**/*.feature
 - [Installation](/gherkin-cli/getting-started/installation/) — running `gherkin-cli` via `npx` or
   installing it into a project.
 - [CLI Reference](/gherkin-cli/cli/parse/) — `parse`, `validate`, and `diff` in full.
+- [API Reference](/gherkin-cli/api/overview/) — the same capabilities as pure functions you import.
 - [AXI output contract](/gherkin-cli/concepts/axi/) — the agent-facing output contract every
   command follows.
 - [TOON format](/gherkin-cli/concepts/toon/) — the compact default output encoding.
