@@ -13,8 +13,8 @@
 
 Adopt AXI principles **#1–#6 and #8–#10** as the output contract for every `gherkin-cli` command:
 
-- TOON by default, `--format json` escape (#1); minimal default schema with `--full` for detail (#2); truncation with a size hint (#3); pre-computed `summary` aggregates in the payload (#4); explicit empty states (#5); structured errors + `0`/`1` exit codes + no prompts + fail-loud unknown flags (#6); bare-command help (#8); next-step lines (#9); consistent `--help` (#10).
-- **Stream discipline:** stdout carries the machine result only; stderr carries next-step lines, warnings, and structured errors.
+- TOON by default, `--format json` escape (#1); minimal default schema with `--full` for detail (#2); truncation with a size hint (#3); pre-computed `summary` aggregates in the payload (#4); explicit empty states (#5); structured errors + `0`/`1`/`2` exit codes + no prompts + fail-loud unknown flags (#6); a bare-command live inventory view rather than a usage manual (#8); next-step lines (#9); consistent `--help` (#10).
+- **Stream discipline:** stdout carries everything the agent consumes — the machine result, the structured errors, the next-step hints, and the definitive empty-state lines; stderr carries only the top-level uncaught-exception fallback. (Errors, hints, and empty states were moved off stderr onto stdout because agents read stdout, not stderr.)
 
 Principle **#7** (ambient context — session hooks + an installable Agent Skill) is **out of scope**: `gherkin-cli` is a leaf CLI with no session-context surface.
 

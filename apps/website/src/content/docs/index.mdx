@@ -1,0 +1,50 @@
+---
+title: gherkin-cli
+description: Agent-first Gherkin CLI — parse, validate, and diff .feature files with token-efficient, AXI-conformant output.
+template: splash
+hero:
+  tagline: Parse, validate, and diff Gherkin .feature files as token-efficient agent output.
+  actions:
+    - text: Get Started
+      link: /gherkin-cli/getting-started/introduction/
+      icon: right-arrow
+    - text: CLI Reference
+      link: /gherkin-cli/cli/parse/
+      icon: open-book
+      variant: minimal
+    - text: API Reference
+      link: /gherkin-cli/api/overview/
+      icon: seti:typescript
+      variant: minimal
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components'
+
+`gherkin-cli` is an agent-first CLI for Gherkin `.feature` files. It wraps the canonical
+[`@cucumber/gherkin`](https://github.com/cucumber/gherkin) parser and projects everything through
+the [AXI](https://github.com/kunchenguid/axi) output contract — compact [TOON](https://toonformat.dev/)
+by default, structured errors, and pre-computed aggregates — so an agent spends the fewest tokens
+per interaction.
+
+## Three commands
+
+<CardGrid>
+	<LinkCard title="parse" href="/gherkin-cli/cli/parse/" description="Project .feature files into a compact scenario/tag/count digest." />
+	<LinkCard title="validate" href="/gherkin-cli/cli/validate/" description="Check .feature well-formedness with a gating exit code." />
+	<LinkCard title="diff" href="/gherkin-cli/cli/diff/" description="Classify scenario changes against a git ref: added, modified, removed." />
+</CardGrid>
+
+## Try it
+
+```bash
+npx gherkin-cli parse features/**/*.feature
+```
+
+Run `gherkin-cli` with no arguments to see the `.feature` inventory of the current directory —
+file names, scenario counts, and tags — in one call.
+
+Prefer to call it in-process? The same three capabilities are pure functions you `import` — see the
+[Programmatic API](/gherkin-cli/api/overview/).
+
+See [Introduction](/gherkin-cli/getting-started/introduction/) for what `gherkin-cli` is and why it
+exists, or jump straight to the [CLI Reference](/gherkin-cli/cli/parse/).
