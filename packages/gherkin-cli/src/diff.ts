@@ -29,13 +29,14 @@ export interface DiffResult {
 }
 
 /** Reads a file's working-tree and base-ref text. Injectable so tests can skip git. */
-export type DiffReader = (file: string, base: string) => { head?: string; base?: string }
+export interface ReadsGitDiff {
+	readDiff(file: string, base: string): { head?: string; base?: string }
+}
 
 export interface DiffOptions {
 	base: string
 	/** Include `unchanged` scenarios in each file's `scenarios` list. Off by default. */
 	full?: boolean
-	reader?: DiffReader
 }
 
 /** Thrown for genuine git/ref failures so the CLI can map it to `fail('EGIT', …)`. */
@@ -51,49 +52,51 @@ function newParser(): Parser<unknown> {
 }
 
 /** Default reader: working-tree text from fs, base text from `git show <ref>:<relpath>`. */
-export function gitReader(file: string, base: string): { head?: string; base?: string } {
-	const abs = path.resolve(file)
-	const dir = path.dirname(abs)
+export const gitReadsDiff: ReadsGitDiff = {
+	readDiff(file, base) {
+		const abs = path.resolve(file)
+		const dir = path.dirname(abs)
 
-	let head: string | undefined
-	try {
-		head = readFileSync(abs, 'utf8')
-	} catch {
-		head = undefined
-	}
-
-	// Resolve the repo-relative path so `git show <ref>:<path>` addresses the right blob.
-	// stdio ignores git's own stderr so a `fatal:` line never leaks onto our clean stderr.
-	const gitIo: ExecFileSyncOptionsWithStringEncoding = {
-		cwd: dir,
-		encoding: 'utf8',
-		stdio: ['ignore', 'pipe', 'ignore'],
-	}
-	let rel: string
-	try {
-		rel = execFileSync('git', ['ls-files', '--full-name', '--', abs], gitIo).trim()
-	} catch (err) {
-		throw new GitError(`git ls-files failed for ${file}: ${(err as Error).message}`)
-	}
-	if (rel === '') {
-		const top = execFileSync('git', ['rev-parse', '--show-toplevel'], gitIo).trim()
-		rel = path.relative(top, abs).split(path.sep).join('/')
-	}
-
-	let baseText: string | undefined
-	try {
-		baseText = execFileSync('git', ['show', `${base}:${rel}`], gitIo)
-	} catch {
-		// Distinguish "path absent at base" (new file, ok) from a bad ref (hard fail).
+		let head: string | undefined
 		try {
-			execFileSync('git', ['rev-parse', '--verify', '--quiet', `${base}^{commit}`], { cwd: dir, stdio: 'ignore' })
-			baseText = undefined
+			head = readFileSync(abs, 'utf8')
 		} catch {
-			throw new GitError(`git could not resolve base ref '${base}'`)
+			head = undefined
 		}
-	}
 
-	return { head, base: baseText }
+		// Resolve the repo-relative path so `git show <ref>:<path>` addresses the right blob.
+		// stdio ignores git's own stderr so a `fatal:` line never leaks onto our clean stderr.
+		const gitIo: ExecFileSyncOptionsWithStringEncoding = {
+			cwd: dir,
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'ignore'],
+		}
+		let rel: string
+		try {
+			rel = execFileSync('git', ['ls-files', '--full-name', '--', abs], gitIo).trim()
+		} catch (err) {
+			throw new GitError(`git ls-files failed for ${file}: ${(err as Error).message}`)
+		}
+		if (rel === '') {
+			const top = execFileSync('git', ['rev-parse', '--show-toplevel'], gitIo).trim()
+			rel = path.relative(top, abs).split(path.sep).join('/')
+		}
+
+		let baseText: string | undefined
+		try {
+			baseText = execFileSync('git', ['show', `${base}:${rel}`], gitIo)
+		} catch {
+			// Distinguish "path absent at base" (new file, ok) from a bad ref (hard fail).
+			try {
+				execFileSync('git', ['rev-parse', '--verify', '--quiet', `${base}^{commit}`], { cwd: dir, stdio: 'ignore' })
+				baseText = undefined
+			} catch {
+				throw new GitError(`git could not resolve base ref '${base}'`)
+			}
+		}
+
+		return { head, base: baseText }
+	},
 }
 
 /** A step's DocString / DataTable payload, reduced to content — never location. */
@@ -183,10 +186,9 @@ function classifyFile(file: string, head: string | undefined, base: string | und
  * over the whole file: `summary.unchanged` and both `addOnly` flags are computed
  * before the projection, so no aggregate depends on the flag.
  */
-export function diffFeatures(paths: string[], opts: DiffOptions): DiffResult {
-	const reader = opts.reader ?? gitReader
+export function diff(paths: string[], opts: DiffOptions, deps: ReadsGitDiff = gitReadsDiff): DiffResult {
 	const files = paths.map((file) => {
-		const { head, base } = reader(file, opts.base)
+		const { head, base } = deps.readDiff(file, opts.base)
 		return classifyFile(file, head, base)
 	})
 

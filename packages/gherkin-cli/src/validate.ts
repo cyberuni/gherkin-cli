@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs'
 import { AstBuilder, GherkinClassicTokenMatcher, Parser } from '@cucumber/gherkin'
 import { IdGenerator } from '@cucumber/messages'
+import { nodeReadsFile, type ReadsFile } from './reader.js'
 
 export interface ValidateError {
 	line: number
@@ -19,16 +19,17 @@ export interface ValidateResult {
 	files: ValidateFile[]
 }
 
+/** Reserved for future validate flags; the `opts` param stays for signature symmetry. */
 export type ValidateOptions = Record<string, never>
 
 function newParser(): Parser<unknown> {
 	return new Parser(new AstBuilder(IdGenerator.incrementing()), new GherkinClassicTokenMatcher())
 }
 
-function validateOne(path: string): ValidateFile {
+function validateOne(path: string, deps: ReadsFile): ValidateFile {
 	let text: string
 	try {
-		text = readFileSync(path, 'utf8')
+		text = deps.readFile(path)
 	} catch (err) {
 		return { file: path, ok: false, errors: [{ line: 0, message: (err as Error).message, code: 'ENOENT' }] }
 	}
@@ -52,8 +53,12 @@ function validateOne(path: string): ValidateFile {
 }
 
 /** Parse each file and collect syntax errors. The CLI exits 1 if any file is invalid. */
-export function validateFeatures(paths: string[], _opts: ValidateOptions = {}): ValidateResult {
-	const files = paths.map(validateOne)
+export function validate(
+	paths: string[],
+	_opts: ValidateOptions = {},
+	deps: ReadsFile = nodeReadsFile,
+): ValidateResult {
+	const files = paths.map((path) => validateOne(path, deps))
 	return {
 		summary: { files: files.length, errors: files.reduce((sum, f) => sum + f.errors.length, 0) },
 		files,
