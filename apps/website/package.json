@@ -11,12 +11,12 @@
 		"typecheck": "astro check"
 	},
 	"dependencies": {
-		"@astrojs/starlight": "^0.39.2",
+		"@astrojs/starlight": "^0.41.5",
 		"@fontsource-variable/inter": "^5.2.8",
 		"astro": "^6.3.7"
 	},
 	"devDependencies": {
-		"@astrojs/check": "^0.9.9",
+		"@astrojs/check": "^0.9.10",
 		"@astrojs/starlight-tailwind": "^4.0.2",
 		"@tailwindcss/vite": "^4.3.2",
 		"tailwindcss": "^4.3.2",
