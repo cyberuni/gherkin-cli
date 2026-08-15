@@ -1,6 +1,6 @@
 {
 	"name": "gherkin-cli",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Agent-first Gherkin CLI — parse, validate, and diff .feature files with token-efficient, AXI-conformant output.",
 	"keywords": [
 		"gherkin",
@@ -41,7 +41,7 @@
 	},
 	"dependencies": {
 		"@cucumber/gherkin": "^41.0.0",
-		"@cucumber/messages": "^33.0.0",
+		"@cucumber/messages": "^34.2.0",
 		"commander": "^14.0.0"
 	},
 	"devDependencies": {

@@ -1,5 +1,23 @@
 # gherkin-cli
 
+## 0.2.0
+
+### Minor Changes
+
+- 5445c7c: Formalize the programmatic API. The `.` entrypoint (`import { … } from 'gherkin-cli'`) is now a documented library surface exposing the pure engines — `parse`, `parseAst` (newly exported), `validate`, `diff`, `GitError` — and their types. The render/stream layer stays CLI-only, so importing gherkin-cli runs no CLI side effect. The CLI now consumes this same API barrel.
+
+  Add a dependency-injection seam for easy testing, passed as a separate 3rd `deps` argument — a narrow role interface (ISP), not an option. `parse`, `parseAst`, and `validate` take a `ReadsFile` (default `nodeReadsFile`); `diff` takes a `ReadsGitDiff` (default `gitReadsDiff`). Each engine receives only the seam it uses, so they can be driven from in-memory fixtures with no filesystem or git access. The `ReadsFile` and `ReadsGitDiff` role interfaces and both node defaults (`nodeReadsFile`, `gitReadsDiff`) are exported. No CLI behavior or output routing changes.
+
+- 28b08ea: `diff` now omits `unchanged` scenarios by default; `--full` includes them.
+
+  The `--full` flag was documented as "include unchanged scenarios in full detail" but was never wired to `diff()` — `diff` always returned every scenario, and the flag only bypassed output truncation. The flag now does what its help says.
+
+  **Breaking (0.x minor):** the default `files[].scenarios` list is now changed-only. A consumer that reads the `unchanged` entries must pass `--full` (CLI) or `{ full: true }` (`diff`). Consumers that read `summary` (including `summary.unchanged`), `addOnly`, or only the `added` / `modified` / `removed` entries need no change — the classification still covers the whole file and every aggregate is computed before the projection.
+
+### Patch Changes
+
+- f342888: Collapse the file list in next-step help blocks to a `<files...>` placeholder for batch runs. `parse`, `validate`, and `diff` echoed every input path — twice — so a 26-file run spent ~6.2KB of stdout on the affordance meant to save tokens (AXI #9). A single-file run still names the real path.
+
 ## 0.1.0
 
 ### Minor Changes
