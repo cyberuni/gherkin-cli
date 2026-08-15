@@ -3,11 +3,6 @@ on:
   push:
     branches: [main]
 
-permissions:
-  id-token: write
-  contents: write
-  pull-requests: write
-
 jobs:
   code:
     uses: cyberuni/.github/.github/workflows/pnpm-verify.yml@main
@@ -15,9 +10,14 @@ jobs:
       os: '["ubuntu-latest"]'
       skip-playwright: true
 
+  # Secretless: GITHUB_TOKEN for the version PR, npm trusted publishing (OIDC) to
+  # publish. No CI_GITHUB_TOKEN or NPM_TOKEN, so nothing to rotate or silently expire.
+  # The trusted publisher registered at npmjs.com must name THIS file (release.yml),
+  # not the reusable workflow it calls.
   release:
+    uses: cyberuni/.github/.github/workflows/pnpm-release-changeset-oidc.yml@main
     needs: code
-    uses: cyberuni/.github/.github/workflows/pnpm-release-changeset.yml@main
-    secrets: inherit
-    with:
-      skip-playwright: true
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
