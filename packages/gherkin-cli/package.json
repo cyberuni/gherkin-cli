@@ -20,7 +20,8 @@
 	"type": "module",
 	"files": [
 		"dist",
-		"!dist/**/*.test.*"
+		"!dist/**/*.test.*",
+		"CHANGELOG.md"
 	],
 	"exports": {
 		".": {
