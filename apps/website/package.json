@@ -11,15 +11,15 @@
 		"typecheck": "astro check"
 	},
 	"dependencies": {
-		"@astrojs/starlight": "^0.39.2",
+		"@astrojs/starlight": "^0.42.10",
 		"@fontsource-variable/inter": "^5.2.8",
 		"astro": "^6.3.7"
 	},
 	"devDependencies": {
-		"@astrojs/check": "^0.9.9",
+		"@astrojs/check": "^0.9.12",
 		"@astrojs/starlight-tailwind": "^5.0.0",
-		"@tailwindcss/vite": "^4.3.2",
-		"tailwindcss": "^4.3.2",
+		"@tailwindcss/vite": "^4.3.5",
+		"tailwindcss": "^4.3.5",
 		"typescript": "^6.0.3",
 		"vite": "^7.3.2"
 	},
